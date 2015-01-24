@@ -1,7 +1,7 @@
 # Angulocity
 ####Animating [AngularJS](https://angularjs.org) with the power of [VelocityJS](https://velocityjs.org) without having to deal with ngAnimation.
 ---
-Angulocity is an effort to make better sense of doing animations with Angular. Angular animations are tightly bound to directives. Most animations are triggered only by events within directives and can be difficult to trigger with or for anything else. Angulocity enables animation on any element by giving them animation attribuites that can be triggered by a boolean expression.
+Angulocity is an effort to make better sense of doing animations with Angular. Add an animation to any element. Trigger using normal angular expressions. Animate groups of elements. Create custom animation sequences thanks to VelocityJS.
 
 ## Requirements
 * AngularJS 1.2+
