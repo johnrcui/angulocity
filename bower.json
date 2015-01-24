@@ -1,0 +1,24 @@
+{
+  "name": "angulocity",
+  "main": "angulocity.js",
+  "version": "0.1.0",
+  "homepage": "https://github.com/johnrcui/angulocity",
+  "authors": [
+    "John Cui <johnrcui@gmail.com>"
+  ],
+  "description": "Animating AngularJS with the power of VelocityJS without having to deal with ngAnimation",
+  "keywords": [
+    "AngularJS",
+    "VelocityJS",
+    "angula",
+    "animation"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
