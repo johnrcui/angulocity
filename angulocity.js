@@ -32,7 +32,7 @@
       /* Velocity's default options */
       duration: iAttrs.ngvDuration ? iAttrs.ngvDuration : 400,
       delay: iAttrs.ngvDelay ? scope.$eval(iAttrs.ngvDelay) : false,
-      easing: iAttrs.ngvEasing ? iAttrs.ngvEasing : 'swing',
+      easing: iAttrs.ngvEasing ? iAttrs.ngvEasing : 'easeInOutQuart',
       queue: iAttrs.ngvQueue ? iAttrs.ngvQueue : undefined,
       begin: iAttrs.ngvBegin ? scope.$eval(iAttrs.ngvBegin) : undefined,
       progress: iAttrs.ngvProgress ? scope.$eval(iAttrs.ngvProgress) : undefined,
@@ -141,7 +141,7 @@
             options = getNgvOptions(scope, iAttrs, n);
             if (n === o) {
               if (n) {
-                iElement.css({display: options.display || 'block', opacity: 1});
+                iElement.css({display: options.display || 'inherited', opacity: 1});
               } else {
                 iElement.css({display: options.display || 'none', opacity: 0});
               }
@@ -203,7 +203,7 @@
           scope.$watch(iAttrs.ngvFade, function(n, o) {
             if (n === o) {
               if (n) {
-                iElement.css({display: options.display || 'block', opacity: 1});
+                iElement.css({display: options.display || 'inherited', opacity: 1});
               } else {
                 iElement.css({display: options.display || 'none', opacity: 0});
               }
@@ -260,25 +260,41 @@
         var ngvIn = null,
             ngvOut = null;
         var repeat = iAttrs.ngvRepeat !== 'false',
-            effect = iAttrs.ngvEffect ? iAttrs.ngvEffect : 'fade'; // default effect
+            effect,
+            animated = false;
         var options;
-        if (iAttrs.ngvInOut && effect) {
-          scope.$watch(iAttrs.ngvInOut, function(n, o) {
+        /* Attempt to evaluate effect */
+        if (iAttrs.ngvEffect) {
+          effect = scope.$eval(iAttrs.ngvEffect);
+          if (!effect) {
+            effect = iAttrs.ngvEffect;
+          }
+        } else {
+          effect = 'fade';
+        }
+
+        if (iAttrs.ngvToggle && effect) {
+          scope.$watch(iAttrs.ngvToggle, function(n, o) {
             collection = iAttrs.ngvCollection ? getNgvCollection(iElement, iAttrs.ngvCollection) : iElement.children();
             options = getNgvOptions(scope, iAttrs, n);
             if (n === o) {
               if (n) {
-                collection.css({display: options.display || 'block', opacity: 1});
+                collection.css({display: options.display || 'inherited', opacity: 1});
               } else {
                 collection.css({display: options.display || 'none', opacity: 0});
               }
             } else {
-              if (n) {
-                v(collection, 'stop');
-                v(collection, effect+'In', options);
+              options = getNgvOptions(scope, iAttrs, n);
+              v(collection, 'stop');
+              if (a.isString(effect)) {
+                v(collection, effect+(n ? 'In' : 'Out'), options);
               } else {
-                v(collection, 'stop');
-                v(collection, effect+'Out', options);
+                if (animated) {
+                  v(collection, 'reverse', options);
+                } else {
+                  v(collection, effect, options);
+                  animated = true;
+                }
               }
             }
           });
@@ -347,29 +363,45 @@
         var ngvIn = null,
             ngvOut = null;
         var repeat = iAttrs.ngvRepeat !== 'false',
-            effect = iAttrs.ngvEffect ? iAttrs.ngvEffect : 'fade'; // default effect
+            effect,
+            animated = false;
         var options;
+        /* Attempt to evaluate effect */
+        if (iAttrs.ngvEffect) {
+          effect = scope.$eval(iAttrs.ngvEffect);
+          if (!effect) {
+            effect = iAttrs.ngvEffect;
+          }
+        } else {
+          effect = 'fade';
+        }
+
         if (iAttrs.ngvElement) {
           iElement.addClass(getNgvClass(iAttrs.ngvElement));
         }
 
         /* Set up watchers depending on element attributes passed */
-        if (iAttrs.ngvInOut && effect) {
-          scope.$watch(iAttrs.ngvInOut, function(n, o) {
+        if (iAttrs.ngvToggle && effect) {
+          scope.$watch(iAttrs.ngvToggle, function(n, o) {
+            options = getNgvOptions(scope, iAttrs, n);
             if (n === o) {
               if (n) {
-                iElement.css({display: options.display || 'block', opacity: 1});
+                iElement.css({display: options.display || 'inherited', opacity: 1});
               } else {
                 iElement.css({display: options.display || 'none', opacity: 0});
               }
             } else {
               options = getNgvOptions(scope, iAttrs, n);
-              if (n) {
-                v(iElement, 'stop');
-                v(iElement, effect+'In', options);
+              v(iElement, 'stop');
+              if (a.isString(effect)) {
+                v(iElement, effect+(n ? 'In' : 'Out'), options);
               } else {
-                v(iElement, 'stop');
-                v(iElement, effect+'Out', options);
+                if (animated) {
+                  v(iElement, 'reverse', options);
+                } else {
+                  v(iElement, effect, options);
+                  animated = true;
+                }
               }
             }
           });
