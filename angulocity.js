@@ -106,6 +106,7 @@
    * Angulocity Module
    *
    * @ngmodule Angulocity
+   *
    */
   a.module('Angulocity', [])
   .provider('$ngvAnimator', function ngvAnimatorProvider() {
@@ -201,6 +202,7 @@
         // If animation switch provided
         if (iAttrs.ngvFade) {
           scope.$watch(iAttrs.ngvFade, function(n, o) {
+            options = getNgvOptions(scope, iAttrs, n);
             if (n === o) {
               if (n) {
                 iElement.css({display: options.display || 'inherited', opacity: 1});
@@ -208,7 +210,6 @@
                 iElement.css({display: options.display || 'none', opacity: 0});
               }
             } else {
-              options = getNgvOptions(scope, iAttrs, n);
               if (n) {
                 v(iElement, 'stop');
                 v(iElement, 'fadeIn', options);
@@ -242,6 +243,20 @@
             });
           }
         }
+      }
+    };
+  }])
+  /**
+   * @ngdoc directive
+   * @name  ngvClass
+   *
+   */
+  .directive('ngvClass', [function () {
+    return {
+      restrict      : 'A',
+      scope         :  false,
+      link          : function (scope, iElement, iAttrs) {
+        iElement.addClass(getNgvClass(iAttrs.ngvClass));
       }
     };
   }])
@@ -284,7 +299,6 @@
                 collection.css({display: options.display || 'none', opacity: 0});
               }
             } else {
-              options = getNgvOptions(scope, iAttrs, n);
               v(collection, 'stop');
               if (a.isString(effect)) {
                 v(collection, effect+(n ? 'In' : 'Out'), options);
@@ -337,20 +351,6 @@
   }])
   /**
    * @ngdoc directive
-   * @name  ngvClass
-   *
-   */
-  .directive('ngvClass', [function () {
-    return {
-      restrict      : 'A',
-      scope         :  false,
-      link          : function (scope, iElement, iAttrs) {
-        iElement.addClass(getNgvClass(iAttrs.ngvClass));
-      }
-    };
-  }])
-  /**
-   * @ngdoc directive
    * @name  ngvElement
    *
    */
@@ -391,7 +391,6 @@
                 iElement.css({display: options.display || 'none', opacity: 0});
               }
             } else {
-              options = getNgvOptions(scope, iAttrs, n);
               v(iElement, 'stop');
               if (a.isString(effect)) {
                 v(iElement, effect+(n ? 'In' : 'Out'), options);
