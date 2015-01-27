@@ -6,7 +6,8 @@
   /* Create some shortcut references to the libraries */
   var a = window.angular,
       v = window.Velocity || window.jQuery.Velocity,
-      $ = $ ? $ : window.jQuery;
+      $ = $ ? $ : window.jQuery,
+      VERSION = '0.1.0';
 
   /* Generate some error messages in the console if Velocity or Velocity UI is not found */
   if (!v) {
