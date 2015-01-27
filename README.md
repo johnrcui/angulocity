@@ -62,7 +62,7 @@ Some 'Out' animations like 'fadeOut' normally removes the animated element from 
 
 `<div ngv-collection="p"...>...</div>` selects all `<p>` within the directive element
 
-`<div ngv-collection="ngv:myClass"...>...</div>` selects all elements with a `ngv-class="myClass"`
+`<div ngv-collection=".ngv(myClass)"...>...</div>` selects all elements with a `ngv-class="myClass"`
 
 ***ngvCollection*** introduces three additional directive attributes `ngv-effect`, `ngv-toggle`, and `ngv-animate` to completely describe the animation.
 
@@ -101,3 +101,5 @@ This example uses ***ngvCollection*** to perform group animations and ***ngvElem
   <p ngv-class="oddp">Paragraph 3</p>
 </div>
 ```
+## Demo
+##### View the [demo](http://plnkr.co/edit/oMjJF9gUXpy3damtPI4G?p=preview) and try it out for yourself.
