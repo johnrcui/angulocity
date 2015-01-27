@@ -16,6 +16,13 @@
     console.error('Angulocity: Velocity UI Pack is not found. Additional animation effects will not be available.');
   }
 
+  /* Detect IE and add appropriate angular ie shims */
+  if (/MSIE/.test(window.navigator.userAgent)) {
+    window.document.createElement('ngv-element');
+    window.document.createElement('ngv-collection');
+    window.document.createElement('ngv-animator');
+  }
+
   /**
    * Setup Velocity options based on attributes passed to the
    * current element.
@@ -61,6 +68,23 @@
     return options;
   }
 
+
+  /**
+   * Utility function to generate hash
+   *
+   * @param   string  s       String to perform has on
+   *
+   * @return  string          Hashed value of string
+   */
+  function getNgvHash(s) {
+    var i = 0, x = 0, c;
+    for (; i < s.length; i++) {
+      c = s.charCodeAt(i);
+      x = ((x<<5)-x)+c;
+    }
+    x |= 0;
+    return x.toString(16);
+  }
   /**
    * Utility function to generate hash for class names.
    *
@@ -70,16 +94,10 @@
    *
    */
   function getNgvClass(klass) {
-    var i, j, x, c, s;
-    klass = klass.split(/\s/);
+    var i;
+    klass = klass.trim().split(/\s/);
     for (i = 0; i < klass.length; i++) {
-      x = 0;
-      s = 'ngv' + klass[i].toLowerCase();
-      for (j = 0; j < s.length; j++) {
-          c = s.charCodeAt(i);
-          x = ((x<<5)-x)+c;
-      }
-      klass[i] = 'ngv' + Math.abs(x).toString(16);
+      klass[i] = 'ngv' + getNgvHash('ngv' + klass[i].toLowerCase());
     }
     return klass.join(' ');
   }
@@ -94,11 +112,100 @@
    *
    */
   function getNgvCollection(iElement, selector) {
-    var m = /^ngv:(\w+?)$/.exec(selector);
-    if (m) {
-      return a.element(iElement[0].querySelectorAll('.' + getNgvClass(m[1])));
-    } else {
+    var selectors,
+        patt = /(.*?).ngv\((\w+)\)/,
+        m;
+    if (selector) {
+      selectors = selector.trim().split(/\s*,\s*/);
+      for (var i = 0; i < selectors.length; i++) {
+        m = patt.exec(selectors[i]);
+        if (m) {
+          selectors[i] = m[1] + '.' + getNgvClass(m[2]);
+        }
+      }
+      selector = selectors.join(',');
       return a.element(iElement[0].querySelectorAll(selector));
+    } else {
+      return iElement.children();
+    }
+  }
+
+  /**
+   * Base directive link function
+   *
+   * @param   object  scope     Scope object used for evaluation
+   * @param   object  iElement  Element to perform animation on
+   * @param   object  iAttrs    reference to directive attributes
+   * @param   string  collectionAttr Attribute name of element child selector
+   *
+   */
+  function ngvLink(scope, iElement, iAttrs, collectionAttr, noToggle) {
+    // Unwatchers
+    var unwatch = null;
+    // Flags
+    var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : true,
+        eager = a.isDefined(iAttrs.ngvEager) ? iAttrs.ngvEager !== 'false' : false,
+        animated = false,
+        collection = false;
+    // Props
+    var effect = 'fade';
+    /* Attempt to evaluate ngvEffect if specified */
+    if (iAttrs.ngvEffect) {
+      effect = scope.$eval(iAttrs.ngvEffect);
+      if (!effect) {
+        effect = iAttrs.ngvEffect;
+      }
+    }
+    /* Check if collectionAttr is valid */
+    if (a.isDefined(collectionAttr) && !a.isDefined(iAttrs[collectionAttr])) {
+      collectionAttr = 'ngvSelector';
+    }
+    collection = a.isDefined(iAttrs[collectionAttr]);
+
+    if (!noToggle && iAttrs.ngvToggle && effect) {
+      scope.$watch(iAttrs.ngvToggle, function(n, o) {
+        var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
+        var options = getNgvOptions(scope, iAttrs, n);
+        if (!eager && n === o) {
+          if (n) {
+            element.css({display: options.display || 'inherited', opacity: 1});
+          } else {
+            element.css({display: options.display || 'none', opacity: 0});
+          }
+        } else {
+          v(element, 'stop');
+          if (a.isString(effect)) {
+            v(element, effect+(n ? 'In' : 'Out'), options);
+          } else {
+            if (animated) {
+              v(element, 'reverse', options);
+            } else {
+              v(element, effect, options);
+              animated = true;
+            }
+          }
+        }
+      });
+    } else if (iAttrs.ngvAnimate && effect) {
+      unwatch = scope.$watch(iAttrs.ngvAnimate, function (n) {
+        if (n) {
+          var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
+          var options = getNgvOptions(scope, iAttrs);
+          v(element, effect, options);
+          if (!repeat) {
+            unwatch();
+          }
+        }
+      });
+    } else if (iAttrs.ngvTrigger && effect) {
+      unwatch = scope.$on(iAttrs.ngvTrigger, function () {
+        var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
+        var options = getNgvOptions(scope, iAttrs);
+        v(element, effect, options);
+        if (!repeat) {
+          unwatch();
+        }
+      });
     }
   }
 
@@ -106,18 +213,48 @@
    * Angulocity Module
    *
    * @ngmodule Angulocity
-   *
    */
   a.module('Angulocity', [])
   .provider('$ngvAnimator', function ngvAnimatorProvider() {
+    var sequences = [];
     var defaults = {
 
     };
 
     this.defaults = defaults;
     this.RegisterEffect = a.isDefined(v.RegisterEffect) ? v.RegisterEffect : a.noop;
-    this.$get = [function () {
-      return null;
+    this.RegisterSequence = function(name, sequence) {
+      if (name && a.isObject(sequence)) {
+        sequence[getNgvClass] = sequence;
+      }
+    };
+    this.$get = ['$document', function ($document) {
+      return {
+        Velocity: v,
+        animate: function (klass, effect, options) {
+          var collection = getNgvCollection($document, klass);
+          if (collection) {
+            return v(collection, effect, options);
+          }
+        },
+        element: function (klass) {
+          return getNgvCollection($document, klass);
+        },
+        animateSequence: function(arg) {
+          var seq, iSeq;
+          if (a.isString(arg)) {
+            seq = sequences[getNgvClass(name)];
+            iSeq = [];
+            for (var i = 0 ; i < seq.length; i++) {
+              // Generate correct sequence format
+              iSeq.push({e: getNgvCollection($document, seq[i].class), p: seq[i].properties, o: seq[i].options});
+            }
+            return v.RunSequence(iSeq);
+          } else if (a.isObject(arg)) {
+            return v.RunSequence(arg);
+          }
+        }
+      };
     }];
   })
   /**
@@ -133,7 +270,7 @@
         // Unwatchers
         var ngvIn = null,
             ngvOut = null;
-        var repeat = iAttrs.ngvRepeat !== 'false';
+        var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : false;
         var options;
 
         // If animation switch provided
@@ -142,9 +279,9 @@
             options = getNgvOptions(scope, iAttrs, n);
             if (n === o) {
               if (n) {
-                iElement.css({display: options.display || 'inherited', opacity: 1});
+                iElement.css({display: options.display || 'inherited'});
               } else {
-                iElement.css({display: options.display || 'none', opacity: 0});
+                iElement.css({display: options.display || 'none'});
               }
             } else {
               if (n) {
@@ -196,7 +333,7 @@
         // Unwatchers
         var ngvIn = null,
             ngvOut = null;
-        var repeat = iAttrs.ngvRepeat !== 'false';
+        var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : false;
         var options;
 
         // If animation switch provided
@@ -262,90 +399,30 @@
   }])
   /**
    * @ngdoc directive
+   * @name  ngvAnimator
+   *
+   */
+  .directive('ngvAnimator', ['$document', function ($document) {
+    return {
+      restrict      : 'EA',
+      scope         :  true,
+      link          : function (scope, iElement, iAttrs) {
+        var element = a.isDefined(iAttrs.ngvGlobal) ? $document : iElement.parent();
+        ngvLink(scope, element, iAttrs, 'ngvSelect', true);
+      }
+    };
+  }])
+  /**
+   * @ngdoc directive
    * @name  ngvCollection
    *
    */
   .directive('ngvCollection', [function () {
     return {
-      restrict      : 'A',
+      restrict      : 'EA',
       scope         :  false,
       link          : function (scope, iElement, iAttrs) {
-        var collection;
-        // Unwatchers
-        var ngvIn = null,
-            ngvOut = null;
-        var repeat = iAttrs.ngvRepeat !== 'false',
-            effect,
-            animated = false;
-        var options;
-        /* Attempt to evaluate effect */
-        if (iAttrs.ngvEffect) {
-          effect = scope.$eval(iAttrs.ngvEffect);
-          if (!effect) {
-            effect = iAttrs.ngvEffect;
-          }
-        } else {
-          effect = 'fade';
-        }
-
-        if (iAttrs.ngvToggle && effect) {
-          scope.$watch(iAttrs.ngvToggle, function(n, o) {
-            collection = iAttrs.ngvCollection ? getNgvCollection(iElement, iAttrs.ngvCollection) : iElement.children();
-            options = getNgvOptions(scope, iAttrs, n);
-            if (n === o) {
-              if (n) {
-                collection.css({display: options.display || 'inherited', opacity: 1});
-              } else {
-                collection.css({display: options.display || 'none', opacity: 0});
-              }
-            } else {
-              v(collection, 'stop');
-              if (a.isString(effect)) {
-                v(collection, effect+(n ? 'In' : 'Out'), options);
-              } else {
-                if (animated) {
-                  v(collection, 'reverse', options);
-                } else {
-                  v(collection, effect, options);
-                  animated = true;
-                }
-              }
-            }
-          });
-        } else if (iAttrs.ngvAnimate && effect) {
-          options = getNgvOptions(scope, iAttrs);
-          ngvIn = scope.$watch(iAttrs.ngvAnimate, function (n) {
-            if (n) {
-              v(collection, effect, options);
-              if (!repeat) {
-                ngvIn();
-              }
-            }
-          });
-        } else {
-          options = getNgvOptions(scope, iAttrs, true);
-          if (iAttrs.ngvIn) {
-            ngvIn = scope.$watch(iAttrs.ngvIn, function (n) {
-              if (n) {
-                v(collection, effect, options);
-                if (!repeat) {
-                  ngvIn();
-                }
-              }
-            });
-          }
-          options = getNgvOptions(scope, iAttrs, false);
-          if (iAttrs.ngvOut) {
-            ngvOut = scope.$watch(iAttrs.ngvOut, function(n) {
-              if (n) {
-                v(collection, effect, options);
-                if (!repeat) {
-                  ngvOut();
-                }
-              }
-            });
-          }
-        }
+        ngvLink(scope, iElement, iAttrs, 'ngvCollection');
       }
     };
   }])
@@ -356,88 +433,13 @@
    */
   .directive('ngvElement', [function () {
     return {
-      restrict      : 'A',
+      restrict      : 'EA',
       scope         :  false,
       link          : function (scope, iElement, iAttrs) {
-        // Unwatchers
-        var ngvIn = null,
-            ngvOut = null;
-        var repeat = iAttrs.ngvRepeat !== 'false',
-            effect,
-            animated = false;
-        var options;
-        /* Attempt to evaluate effect */
-        if (iAttrs.ngvEffect) {
-          effect = scope.$eval(iAttrs.ngvEffect);
-          if (!effect) {
-            effect = iAttrs.ngvEffect;
-          }
-        } else {
-          effect = 'fade';
-        }
-
         if (iAttrs.ngvElement) {
           iElement.addClass(getNgvClass(iAttrs.ngvElement));
         }
-
-        /* Set up watchers depending on element attributes passed */
-        if (iAttrs.ngvToggle && effect) {
-          scope.$watch(iAttrs.ngvToggle, function(n, o) {
-            options = getNgvOptions(scope, iAttrs, n);
-            if (n === o) {
-              if (n) {
-                iElement.css({display: options.display || 'inherited', opacity: 1});
-              } else {
-                iElement.css({display: options.display || 'none', opacity: 0});
-              }
-            } else {
-              v(iElement, 'stop');
-              if (a.isString(effect)) {
-                v(iElement, effect+(n ? 'In' : 'Out'), options);
-              } else {
-                if (animated) {
-                  v(iElement, 'reverse', options);
-                } else {
-                  v(iElement, effect, options);
-                  animated = true;
-                }
-              }
-            }
-          });
-        } else if (iAttrs.ngvAnimate && effect) {
-          options = getNgvOptions(scope, iAttrs);
-          ngvIn = scope.$watch(iAttrs.ngvAnimate, function (n) {
-            if (n) {
-              v(iElement, effect, options);
-              if (!repeat) {
-                ngvIn();
-              }
-            }
-          });
-        } else {
-          options = getNgvOptions(scope, iAttrs, true);
-          if (iAttrs.ngvIn) {
-            ngvIn = scope.$watch(iAttrs.ngvIn, function (n) {
-              if (n) {
-                v(iElement, effect, options);
-                if (!repeat) {
-                  ngvIn();
-                }
-              }
-            });
-          }
-          options = getNgvOptions(scope, iAttrs, false);
-          if (iAttrs.ngvOut) {
-            ngvOut = scope.$watch(iAttrs.ngvOut, function(n) {
-              if (n) {
-                v(iElement, effect, options);
-                if (!repeat) {
-                  ngvOut();
-                }
-              }
-            });
-          }
-        }
+        ngvLink(scope, iElement, iAttrs);
       }
     };
   }])
