@@ -271,13 +271,13 @@
         // Unwatchers
         var ngvIn = null,
             ngvOut = null;
-        var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : false;
-        var options;
+        var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : false,
+            eager = a.isDefined(iAttrs.ngvEager) ? iAttrs.ngvEager !== 'false' : false;
 
         // If animation switch provided
         if (iAttrs.ngvSlide) {
           scope.$watch(iAttrs.ngvSlide, function(n, o) {
-            options = getNgvOptions(scope, iAttrs, n);
+            var options = getNgvOptions(scope, iAttrs, n);
             if (n === o) {
               if (n) {
                 iElement.css({display: options.display || 'inherited'});
@@ -295,9 +295,9 @@
             }
           });
         } else {
-          options = getNgvOptions(scope, iAttrs, true);
           if (iAttrs.ngvIn) {
             ngvIn = scope.$watch(iAttrs.ngvIn, function (n) {
+              var options = getNgvOptions(scope, iAttrs, true);
               if (n) {
                 v(iElement, 'slideDown', options);
                 if (!repeat) {
@@ -306,9 +306,9 @@
               }
             });
           }
-          options = getNgvOptions(scope, iAttrs, false);
           if (iAttrs.ngvOut) {
             ngvOut = scope.$watch(iAttrs.ngvOut, function(n) {
+              var options = getNgvOptions(scope, iAttrs, false);
               if (n) {
                 v(iElement, 'slideUp', options);
                 if (!repeat) {
@@ -334,13 +334,13 @@
         // Unwatchers
         var ngvIn = null,
             ngvOut = null;
-        var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : false;
-        var options;
+        var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : false,
+            eager = a.isDefined(iAttrs.ngvEager) ? iAttrs.ngvEager !== 'false' : false;
 
         // If animation switch provided
         if (iAttrs.ngvFade) {
           scope.$watch(iAttrs.ngvFade, function(n, o) {
-            options = getNgvOptions(scope, iAttrs, n);
+            var options = getNgvOptions(scope, iAttrs, n);
             if (n === o) {
               if (n) {
                 iElement.css({display: options.display || 'inherited', opacity: 1});
@@ -358,9 +358,9 @@
             }
           });
         } else {
-          options = getNgvOptions(scope, iAttrs, true);
           if (iAttrs.ngvIn) {
             ngvIn = scope.$watch(iAttrs.ngvIn, function (n) {
+              var options = getNgvOptions(scope, iAttrs, true);
               if (n) {
                 v(iElement, 'fadeIn', options);
                 if (!repeat) {
@@ -369,9 +369,9 @@
               }
             });
           }
-          options = getNgvOptions(scope, iAttrs, false);
           if (iAttrs.ngvOut) {
             ngvOut = scope.$watch(iAttrs.ngvOut, function(n) {
+              var options = getNgvOptions(scope, iAttrs, false);
               if (n) {
                 v(iElement, 'fadeOut', options);
                 if (!repeat) {
