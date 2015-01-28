@@ -246,7 +246,7 @@
             if (animall) {
               v(element, effect, options);
             } else {
-              v(e.srcElement, effect, options);
+              v(e.toElement, effect, options);
             }
 
             if (!repeat) {
