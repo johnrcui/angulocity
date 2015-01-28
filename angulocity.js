@@ -7,7 +7,7 @@
   var a = window.angular,
       v = window.Velocity || window.jQuery.Velocity,
       $ = $ ? $ : window.jQuery,
-      VERSION = '0.1.1';
+      VERSION = '0.1.2';
 
   /* Generate some error messages in the console if Velocity or Velocity UI is not found */
   if (!v) {
@@ -145,7 +145,7 @@
     var unwatch = null;
     // Flags
     var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : true,
-        eager = a.isDefined(iAttrs.ngvEager) ? iAttrs.ngvEager !== 'false' : false,
+        eager = a.isDefined(iAttrs.ngvEager) ? iAttrs.ngvEager !== 'false' : noToggle || false,
         animated = false,
         collection = false;
     // Props
@@ -163,50 +163,102 @@
     }
     collection = a.isDefined(iAttrs[collectionAttr]);
 
-    if (!noToggle && iAttrs.ngvToggle && effect) {
-      scope.$watch(iAttrs.ngvToggle, function(n, o) {
-        var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
-        var options = getNgvOptions(scope, iAttrs, n);
-        if (!eager && n === o) {
-          if (n) {
-            element.css({display: options.display || 'inherited', opacity: 1});
-          } else {
-            element.css({display: options.display || 'none', opacity: 0});
-          }
-        } else {
-          v(element, 'stop');
-          if (a.isString(effect)) {
-            v(element, effect+(n ? 'In' : 'Out'), options);
-          } else {
-            if (animated) {
-              v(element, 'reverse', options);
+    if (effect) {
+      /**
+       * ngvToggle
+       */
+      if (!noToggle && iAttrs.ngvToggle) {
+        scope.$watch(iAttrs.ngvToggle, function(n, o) {
+          var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
+          var options = getNgvOptions(scope, iAttrs, n);
+          if (!eager && n === o) {
+            if (n) {
+              element.css({display: options.display || 'inherited', opacity: 1});
             } else {
-              v(element, effect, options);
-              animated = true;
+              element.css({display: options.display || 'none', opacity: 0});
+            }
+          } else {
+            v(element, 'stop');
+            if (a.isString(effect)) {
+              v(element, effect+(n ? 'In' : 'Out'), options);
+            } else {
+              if (animated) {
+                v(element, 'reverse', options);
+              } else {
+                v(element, effect, options);
+                animated = true;
+              }
             }
           }
-        }
-      });
-    } else if (iAttrs.ngvAnimate && effect) {
-      unwatch = scope.$watch(iAttrs.ngvAnimate, function (n) {
-        if (n) {
+        });
+      /**
+       * ngvAnimate
+       */
+      } else if (iAttrs.ngvAnimate) {
+        unwatch = scope.$watch(iAttrs.ngvAnimate, function (n, o) {
+          if (n) {
+            if ((n !== o) || eager) {
+              var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
+              var options = getNgvOptions(scope, iAttrs);
+              v(element, effect, options);
+              if (!repeat) {
+                unwatch();
+              }
+            }
+          }
+        });
+      /**
+       * ngvReceive
+       */
+      } else if (iAttrs.ngvReceive) {
+        unwatch = scope.$on(iAttrs.ngvReceive, function () {
           var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
           var options = getNgvOptions(scope, iAttrs);
           v(element, effect, options);
           if (!repeat) {
             unwatch();
           }
-        }
-      });
-    } else if (iAttrs.ngvTrigger && effect) {
-      unwatch = scope.$on(iAttrs.ngvTrigger, function () {
-        var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
-        var options = getNgvOptions(scope, iAttrs);
-        v(element, effect, options);
-        if (!repeat) {
-          unwatch();
-        }
-      });
+        });
+      /**
+       * ngvTrigger
+       */
+      } else if (iAttrs.ngvTrigger) {
+        unwatch = scope.$watch(iAttrs.ngvTrigger, function (n, o) {
+          if (n !== o) {
+            var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
+            var options = getNgvOptions(scope, iAttrs);
+            v(element, effect, options);
+            if (!repeat) {
+              unwatch();
+            }
+          }
+        });
+      /**
+       * ngvEvent
+       */
+      } else if (iAttrs.ngvEvent) {
+        (function() {
+          var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement,
+              prevent = a.isDefined(iAttrs.ngvPreventDefault) ? iAttrs.ngvPreventDefault !== 'false' : false,
+              animall = a.isDefined(iAttrs.ngvEventTargeted) ? iAttrs.ngvEventTargeted === 'false' : false,
+              options = getNgvOptions(scope, iAttrs);
+          element.on(iAttrs.ngvEvent, function (e) {
+            if (animall) {
+              v(element, effect, options);
+            } else {
+              v(e.srcElement, effect, options);
+            }
+
+            if (!repeat) {
+              element.off(iAttrs.ngvEvent);
+            }
+
+            if (prevent) {
+              e.preventDefault();
+            }
+          });
+        })();
+      }
     }
   }
 
@@ -394,7 +446,28 @@
       restrict      : 'A',
       scope         :  false,
       link          : function (scope, iElement, iAttrs) {
-        iElement.addClass(getNgvClass(iAttrs.ngvClass));
+        var klass;
+        /* Force evaluation of ngvClass to see if object or string supplied */
+        if (a.isDefined(iAttrs.ngvClass)) {
+          klass = scope.$eval(iAttrs.ngvClass);
+          if (!klass) {
+            klass = iAttrs.ngvClass;
+          }
+
+          if (a.isObject(klass)) {
+            scope.$watch(iAttrs.ngvClass, function (n) {
+              a.forEach(n, function (v, p) {
+                if (v) {
+                  iElement.addClass(getNgvClass(p));
+                } else {
+                  iElement.removeClass(getNgvClass(p));
+                }
+              });
+            });
+          } else {
+            iElement.addClass(getNgvClass(iAttrs.ngvClass));
+          }
+        }
       }
     };
   }])
