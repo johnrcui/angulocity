@@ -7,7 +7,7 @@
   var a = window.angular,
       v = window.Velocity || window.jQuery.Velocity,
       $ = $ ? $ : window.jQuery,
-      VERSION = '0.1.0';
+      VERSION = '0.1.1';
 
   /* Generate some error messages in the console if Velocity or Velocity UI is not found */
   if (!v) {
@@ -278,7 +278,7 @@
         if (iAttrs.ngvSlide) {
           scope.$watch(iAttrs.ngvSlide, function(n, o) {
             var options = getNgvOptions(scope, iAttrs, n);
-            if (n === o) {
+            if (!eager && n === o) {
               if (n) {
                 iElement.css({display: options.display || 'inherited'});
               } else {
@@ -341,7 +341,7 @@
         if (iAttrs.ngvFade) {
           scope.$watch(iAttrs.ngvFade, function(n, o) {
             var options = getNgvOptions(scope, iAttrs, n);
-            if (n === o) {
+            if (!eager && n === o) {
               if (n) {
                 iElement.css({display: options.display || 'inherited', opacity: 1});
               } else {
