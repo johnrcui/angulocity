@@ -41,7 +41,7 @@
       duration: iAttrs.ngvDuration ? iAttrs.ngvDuration : 400,
       delay: iAttrs.ngvDelay ? scope.$eval(iAttrs.ngvDelay) : false,
       easing: iAttrs.ngvEasing ? iAttrs.ngvEasing : 'easeInOutQuart',
-      queue: iAttrs.ngvQueue ? iAttrs.ngvQueue : undefined,
+      queue: iAttrs.ngvQueue ? iAttrs.ngvQueue !== 'false' ? iAttrs.ngvQueue : false : undefined,
       begin: iAttrs.ngvBegin ? scope.$eval(iAttrs.ngvBegin) : undefined,
       progress: iAttrs.ngvProgress ? scope.$eval(iAttrs.ngvProgress) : undefined,
       complete: iAttrs.ngvComplete ? scope.$eval(iAttrs.ngvComplete) : undefined,
