@@ -237,7 +237,8 @@
        * ngvEvent
        */
       } else if (iAttrs.ngvEvent) {
-        (function() {
+        // force event binding on next digest
+        setTimeout(function() {
           var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement,
               prevent = a.isDefined(iAttrs.ngvPreventDefault) ? iAttrs.ngvPreventDefault !== 'false' : false,
               animall = a.isDefined(iAttrs.ngvEventTargeted) ? iAttrs.ngvEventTargeted === 'false' : false,
@@ -257,7 +258,7 @@
               e.preventDefault();
             }
           });
-        })();
+        });
       }
     }
   }
