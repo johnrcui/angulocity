@@ -341,7 +341,7 @@
               } else {
                 iElement.css({display: options.display || 'none'});
               }
-            } else if (repeat) {
+            } else {
               if (n) {
                 v(iElement, 'stop');
                 v(iElement, 'slideDown', options);
@@ -349,15 +349,13 @@
                 v(iElement, 'stop');
                 v(iElement, 'slideUp', options);
               }
-            } else {
-              ngvIn();
             }
           });
         } else {
           if (iAttrs.ngvIn) {
-            ngvIn = scope.$watch(iAttrs.ngvIn, function (n) {
+            ngvIn = scope.$watch(iAttrs.ngvIn, function (n, o) {
               var options = getNgvOptions(scope, iAttrs, true);
-              if (n) {
+              if (n !== o && n) {
                 v(iElement, 'slideDown', options);
                 if (!repeat) {
                   ngvIn();
@@ -366,9 +364,9 @@
             });
           }
           if (iAttrs.ngvOut) {
-            ngvOut = scope.$watch(iAttrs.ngvOut, function(n) {
+            ngvOut = scope.$watch(iAttrs.ngvOut, function(n, o) {
               var options = getNgvOptions(scope, iAttrs, false);
-              if (n) {
+              if (n !== o && n) {
                 v(iElement, 'slideUp', options);
                 if (!repeat) {
                   ngvOut();
@@ -406,7 +404,7 @@
               } else {
                 iElement.css({display: options.display || 'none', opacity: 0});
               }
-            } else if (repeat) {
+            } else {
               if (n) {
                 v(iElement, 'stop');
                 v(iElement, 'fadeIn', options);
@@ -414,15 +412,13 @@
                 v(iElement, 'stop');
                 v(iElement, 'fadeOut', options);
               }
-            } else {
-              ngvIn();
             }
           });
         } else {
           if (iAttrs.ngvIn) {
-            ngvIn = scope.$watch(iAttrs.ngvIn, function (n) {
+            ngvIn = scope.$watch(iAttrs.ngvIn, function (n, o) {
               var options = getNgvOptions(scope, iAttrs, true);
-              if (n) {
+              if (n !== o && n) {
                 v(iElement, 'fadeIn', options);
                 if (!repeat) {
                   ngvIn();
@@ -431,9 +427,9 @@
             });
           }
           if (iAttrs.ngvOut) {
-            ngvOut = scope.$watch(iAttrs.ngvOut, function(n) {
+            ngvOut = scope.$watch(iAttrs.ngvOut, function(n, o) {
               var options = getNgvOptions(scope, iAttrs, false);
-              if (n) {
+              if (n !== o && n) {
                 v(iElement, 'fadeOut', options);
                 if (!repeat) {
                   ngvOut();
