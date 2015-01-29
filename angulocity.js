@@ -328,12 +328,12 @@
         // Unwatchers
         var ngvIn = null,
             ngvOut = null;
-        var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : false,
+        var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : true,
             eager = a.isDefined(iAttrs.ngvEager) ? iAttrs.ngvEager !== 'false' : false;
 
         // If animation switch provided
         if (iAttrs.ngvSlide) {
-          scope.$watch(iAttrs.ngvSlide, function(n, o) {
+          ngvIn = scope.$watch(iAttrs.ngvSlide, function(n, o) {
             var options = getNgvOptions(scope, iAttrs, n);
             if (!eager && n === o) {
               if (n) {
@@ -349,6 +349,8 @@
                 v(iElement, 'stop');
                 v(iElement, 'slideUp', options);
               }
+            } else {
+              ngvIn();
             }
           });
         } else {
@@ -391,12 +393,12 @@
         // Unwatchers
         var ngvIn = null,
             ngvOut = null;
-        var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : false,
+        var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : true,
             eager = a.isDefined(iAttrs.ngvEager) ? iAttrs.ngvEager !== 'false' : false;
 
         // If animation switch provided
         if (iAttrs.ngvFade) {
-          scope.$watch(iAttrs.ngvFade, function(n, o) {
+          ngvIn = scope.$watch(iAttrs.ngvFade, function(n, o) {
             var options = getNgvOptions(scope, iAttrs, n);
             if (!eager && n === o) {
               if (n) {
@@ -404,7 +406,7 @@
               } else {
                 iElement.css({display: options.display || 'none', opacity: 0});
               }
-            } else {
+            } else if (repeat) {
               if (n) {
                 v(iElement, 'stop');
                 v(iElement, 'fadeIn', options);
@@ -412,9 +414,11 @@
                 v(iElement, 'stop');
                 v(iElement, 'fadeOut', options);
               }
+            } else {
+              ngvIn();
             }
           });
-        } else if (repeat) {
+        } else {
           if (iAttrs.ngvIn) {
             ngvIn = scope.$watch(iAttrs.ngvIn, function (n) {
               var options = getNgvOptions(scope, iAttrs, true);
