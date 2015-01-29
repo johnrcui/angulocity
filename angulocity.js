@@ -155,6 +155,10 @@
       effect = scope.$eval(iAttrs.ngvEffect);
       if (!effect) {
         effect = iAttrs.ngvEffect;
+      } else if (!a.isObject(effect)) {
+        scope.$watch(iAttrs.ngvEffect, function(n) {
+          effect = n;
+        });
       }
     }
     /* Check if collectionAttr is valid */
@@ -337,7 +341,7 @@
               } else {
                 iElement.css({display: options.display || 'none'});
               }
-            } else {
+            } else if (repeat) {
               if (n) {
                 v(iElement, 'stop');
                 v(iElement, 'slideDown', options);
@@ -410,7 +414,7 @@
               }
             }
           });
-        } else {
+        } else if (repeat) {
           if (iAttrs.ngvIn) {
             ngvIn = scope.$watch(iAttrs.ngvIn, function (n) {
               var options = getNgvOptions(scope, iAttrs, true);
