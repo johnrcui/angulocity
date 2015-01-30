@@ -48,9 +48,18 @@
       display: iAttrs.ngvDisplay ? iAttrs.ngvDisplay : undefined,
       visibility: iAttrs.ngvVisibility ? iAttrs.ngvVisibility : undefined,
       loop: iAttrs.ngvLoop ? scope.$eval(iAttrs.ngvLoop) : undefined,
+      mobileHA: iAttrs.ngvMobileHa ? scope.$eval(iAttrs.ngvMobileHa) :  true,
+      // group options
       stagger: iAttrs.ngvStagger ? scope.$eval(iAttrs.ngvStagger) : undefined,
       drag: iAttrs.ngvDrag ? scope.$eval(iAttrs.ngvDrag) : undefined,
-      mobileHA: iAttrs.ngvMobileHa ? scope.$eval(iAttrs.ngvMobileHa) :  true
+      // scroll options
+      container: undefined,
+      axis: iAttrs.ngvAxis ? scope.$eval(iAttrs.ngvAxis) : undefined,
+      offset: iAttrs.ngvOffset ?
+        scope.$eval(iAttrs.ngvOffset) ?
+          scope.$eval(iAttrs.ngvOffset) :
+          iAttrs.ngvOffset
+        : undefined
     };
 
     /* Alter some options based on whether animating "In" or "Out" */
