@@ -1,6 +1,7 @@
 # Angulocity
-####Animating [AngularJS](https://angularjs.org) with the power of [VelocityJS](https://velocityjs.org) without having to deal with ngAnimation.
+### Declarative View Driven Animation with [AngularJS](https://angularjs.org) + [VelocityJS](https://velocityjs.org) 
 ---
+
 Angulocity is an effort to make better sense of doing animations with Angular. Add an animation to any element. Trigger animation using normal Angular expressions and events. Animate groups of elements. Create custom animation sequences thanks to VelocityJS.
 
 > ####Get a [full gist](https://github.com/johnrcui/angulocity/blob/master/gist.md) of what this project is about.
