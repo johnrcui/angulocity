@@ -52,7 +52,22 @@ Wait... What?!
 
 Sad to say it, but most of the animation that impresses me can really only be done with good old program
 logic to drive the animation. As great as Angular is, it just doesn't have the propper solution to deliver
-sophisticated on demand animation without having to break one of its important rules. ***No DOM manipulation
+sophisticated on demand animation without having to break one of its important rules -- ***no DOM manipulation
 within the controller*** ...at least not directly.
 
-### My Vision
+### How this idea came about?
+
+Being more of a developer than a desiger, I hadn't had the foundation to deal heavily in CSS3 animations. And
+working on a project that required IE8 compatibility drove the last nail on the *no CSS3 animations* coffin.
+However, a little bit of animation was necessary for the UI/UX developed for the project for it to make sense.
+
+The solution to this problem came about as an attribute directive that can be attached to elements or other directives wherein the logic to drive the animation was derived from a value assigned to it.
+
+```html
+<div my-directive="expression">...</div>
+```
+
+This essentially removed any code in my controllers that would directly manipulate the DOM to drive an animation. The animation could be initiated by an expression evaluated within the scope. Which meant that I don't have to necessarily assign a scope variable to animate something. It could be just from any value existing in the scope that coincides with when the animation may occur such as when something needs to show or hide.
+
+Immediately it became a quick replacement for `ng-show` which allowed me to animate the element's visibility.
+
