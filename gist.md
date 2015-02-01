@@ -77,21 +77,21 @@ At the time the idea came about, I hadn't really looked for other solutions whic
 
 However, after consequently looking at other options for animation in Angular as a means of validating my idea. I realized there's not one (that I've found) other solution followed the principles I though made sense to me. Here are the notable solutions.
 
-> #### [ngFx](https://github.com/Hendrixer/ngFx) - javascript animation using [GSAP](http://greensock.com/gsap) engine
+#### [ngFx](https://github.com/Hendrixer/ngFx) - javascript animation using [GSAP](http://greensock.com/gsap) engine
 
 > ##### Highlights
 > * Declarative - uses class names to define animation
 > * Performant - thanks to the GSAP library
 > * Customizable - definable custom animations
 
-> #### [angular-velocity](https://github.com/cgwyllie/angular-velocity) - a small utility to add [Velocity.js](https://velocityjs.org) animations to Angular
+#### [angular-velocity](https://github.com/cgwyllie/angular-velocity) - a small utility to add [Velocity.js](https://velocityjs.org) animations to Angular
 
 > ##### Highlights
 > * Delcarative - uses class names to define animation and attributes to set options
 > * Performant - thanks to VelocityJS library
 > * Customizable - custom animations through VelocityJS
 
-> #### [velocity-ui-angular](https://github.com/rosslavery/velocity-ui-angular) - VelocityJS plugin for Angular
+#### [velocity-ui-angular](https://github.com/rosslavery/velocity-ui-angular) - VelocityJS plugin for Angular
 
 > ##### Highlights
 > * Declarative - uses class names to define animation
@@ -109,7 +109,7 @@ These solutions are great and they would have solved my problem when I first req
 3.  Separation of Concerns states that a **View** cannot perform **Controller** logic and a **Controller** cannot enforce **View** logic. Hence the reason why the **Controller** should not access DOM directly.
 4.  I want a greater amount of animation capabilities in my Angular app without breaking #3.
 
-#### My Solution
+#### My Implementation
 
 The first and obvious part of my solution is to use pre-existing javascript animation libraries, specifically [VelocityJS](https://velocityjs.org) for its performance and capabilities. Velocity has the ability to perform complicated multi element animations through the use of sequences. This ability will allow us to define our animations during configuration. If we must, we can use class names for targetted animation sequences which can then be attributed to a single or specific element in the view. This animation sequence can later then be performed together through a single call. This keeps out a large chunk of our animation logic, even complex ones, apart from our controller logic and leaves us with just one thing. How do we initiate these animations?
 
@@ -117,4 +117,50 @@ The solution ngAnimate offers us is to hook these animations to one of its event
 
 #### Is exposing these events *Angular*?
 
-It is! ...for a variety of reasons.
+It is! ...for a variety of reasons. Let's look at them individually.
+
+##### Browser Events
+
+>   Browser events are resultant of a user's interaction with the *View*. There is no reason to say that the event needs to be processed by a *Controller* in order for some animation to occur. In fact the *Controller* should not even be used to process this event, only directives. So yes, browser events, intercepted by an animation directive is perfectly *Angular*.
+
+##### $boradcast and $emmit ($scope events)
+
+>   Many Angular users are familiar with these methods for delivering messages cross module or cross controller. These events act like radio frequencies in that they propagate throughout. In many cases `$rootScope.$broadcast()` is preferred to guarantee delivery of event to all scopes. There's no rule broken if we listen to these events.
+
+##### [Angular Expressions](https://docs.angularjs.org/guide/expression)
+
+>   These expressions are different to Javascript expression in that they are only evaluated within their scope. Simply enough they have to be *Angular* because all Angular directives that deal with page layout use them. Triggering animations is no different.
+
+##### ngAnimate Events
+
+>   No need to cover this.
+
+## Angulocity
+
+The result of all this is [Angulocity](https://github.com/johnrcui/angulocity), my ***Declarative View Driven Animation*** module.
+
+### How is it ***Declarative***?
+
+Animations are declared explicity within the document via several attribute directives and their helpers. An animation and its trigger can be defined simply with a single directive or expressively through the use of directive attributes. Since the module uses VelocityJS animation engine, any animation that works with it can be explicitly defined as a set of attributes and values.
+
+In comparison using class name combinations to define an animation, using attribute value method in my opinion is considerably more legible than class names in that it clearly indicates your intentions -- which in all case is assigning a value. For example:
+
+```html
+<div ngv-toggle="expression" ngv-effect="my_effect" ngv-duration="800" ngv-once>...</div>
+```
+compared to
+
+```html
+<div class="my-class some-other-class maybe-another-class fx-fade-down fx-easing-bounce fx-speed-800 fx-trigger">...<div>
+```
+At some point having that many lengthy class names start to look cluttered and confusing.
+
+Unlike [angular-velocity](https://github.com/cgwyllie/angular-velocity), Angulocity defers from assigning objects to attributes. Instead options are broken down to their individual parts and are assigned through individual attributes which make it more akin to a traditional html element attribute.
+
+### How is it ***View Driven***?
+
+Simply, these animations do not rely on what happens on the controller to define and initiate it. The entire animation event is defined explicitly on the view and does not communicate in any way back to the controller except perhaps as a `$broadcast` event. The full animation capabilities of the VelocityJS engine can be simplified down to a set of element attributes that even non-programmers can use.
+
+## Final Thoughts
+
+I hope I have convinced some of you to accept my notion of animating AngularJS. There might be some die-hard ngAnimate guys that will hate me for this, but I'm not planning to go back. Thanks for the interest in this subject matter and please let me know what you think ...but be nice :).
