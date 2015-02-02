@@ -185,22 +185,17 @@
           var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
           var options = getNgvOptions(scope, iAttrs, n);
           if (!eager && n === o) {
-            if (n) {
-              element.css({display: options.display || 'inherited', opacity: 1});
-            } else {
-              element.css({display: options.display || 'none', opacity: 0});
-            }
+            options.duration = 0; // do not animate
+          }
+          v(element, 'stop');
+          if (a.isString(effect)) {
+            v(element, effect+(n ? 'In' : 'Out'), options);
           } else {
-            v(element, 'stop');
-            if (a.isString(effect)) {
-              v(element, effect+(n ? 'In' : 'Out'), options);
+            if (animated) {
+              v(element, 'reverse', options);
             } else {
-              if (animated) {
-                v(element, 'reverse', options);
-              } else {
-                v(element, effect, options);
-                animated = true;
-              }
+              v(element, effect, options);
+              animated = true;
             }
           }
         });
@@ -282,6 +277,9 @@
    * @ngmodule Angulocity
    */
   a.module('Angulocity', [])
+  .config(['$provide', '$animateProvider', '$ngvAnimator', function ($provide, $animateProvider, $ngvAnimator) {
+
+  }])
   .provider('$ngvAnimator', function ngvAnimatorProvider() {
     var sequences = [];
     var defaults = {
