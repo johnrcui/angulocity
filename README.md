@@ -14,6 +14,15 @@ Angulocity is an effort to make better sense of doing animations with Angular. A
 ## Usage
 ######View a live demonstration with instructions on how to use Angulocity is available through [Plunker](http://plnkr.co/edit/oMjJF9gUXpy3damtPI4G?p=preview).
 
+## In the *Works*
+
+These are what's in development in their priority order
+
+1.  Create a decorator for `$animate` to handle ngAnimate events
+2.  Set up an automated testing environment
+
+Checkout the `works` branch to see the progress.
+
 ## Contribute
 The development of this library is still in it's early stages and several ideas haven't been implemented yet. I will not be accepting any pull requests until a complete foundation has been laid and the strategies for contributing to the project has been developed. In the mean time, feel free to fork this project.
 
