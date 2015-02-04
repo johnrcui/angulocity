@@ -246,29 +246,10 @@
         }
       }
 
-      var $ngvAnimator = ['$rootElement', '$rootScope', '$templateRequest', '$document', '$$q', function ($rootElement, $rootScope, $templateRequest, $document, $$q) {
+      var $ngvAnimator = ['$rootElement', '$rootScope', '$document', '$$q', function ($rootElement, $rootScope, $document, $$q) {
         v.Promise = $$q;
 
         $rootElement.data(NGV_ANIMATE_STATE, rootAnimatorState);
-
-        /*! this section is derived from angular-animate source */
-        (function watchPendingRequest() {
-          var unwatch = $rootScope.$watch(
-            function() {
-              return $templateRequest.totalPendingRequests;
-            },
-            function(n) {
-              if (n === 0) {
-                unwatch();
-                $rootScope.$$postDigest(function() {
-                  $rootScope.$$postDigest(function () {
-                    rootAnimatorState.initialized = true;
-                  });
-                });
-              }
-            }
-          );
-        })();
 
         function watchAnimatorState () {
           if (a.isDefined(animatorPromise)) { return; }
@@ -344,7 +325,6 @@
           }
         }
 
-        // Derived from Velocity.js CSS stack
         function addClass (element, name) {
           element.addClass(getClassHash(name));
         }
@@ -352,6 +332,12 @@
         function removeClass (element, name) {
           element.removeClass(getClassHash(name));
         }
+
+        $rootScope.$$postDigest(function() {
+          $rootScope.$$postDigest(function () {
+            rootAnimatorState.initialized = true;
+          });
+        });
 
         return {
           animate: runAnimation,
@@ -512,11 +498,11 @@
           }
         },
 
-        enter: function(element, parentElement, afterElement, options) {
+        enter: function(element, parentElement, afterElement, done) {
           var $element = stripCommentsFromElement(element);
           var $attrs = mapAttrs($element[0].attributes);
           if (a.isDefined($attrs.ngvEnter)) {
-            $delegate.enter(element, parentElement, afterElement, options);
+            $delegate.enter(element, parentElement, afterElement);
             var $options = getAnimationOptions($element.scope(), $attrs);
             var $effect = getAnimationEffect($element.scope(), $attrs);
 
@@ -529,11 +515,11 @@
             $ngvAnimator.animate($element, {opacity: 0}, {duration: 0});
             return $ngvAnimator.animate($element, $effect.enter, $options);
           } else {
-            return $delegate.enter(element, parentElement, afterElement, options);
+            return $delegate.enter(element, parentElement, afterElement);
           }
         },
 
-        leave: function(element, options) {
+        leave: function(element, done) {
           var $element = stripCommentsFromElement(element);
           var $attrs = mapAttrs(element[0].attributes);
           if (a.isDefined($attrs.ngvLeave)) {
@@ -550,24 +536,24 @@
 
             return $ngvAnimator.animate($element, $effect.leave || $effect.enter, $options, function () { $delegate.leave(element, options); });
           } else {
-            return $delegate.leave(element, options);
+            return $delegate.leave(element);
           }
         },
 
-        move: function(element, parentElement, afterElement, options) {
-          return $$q.when($delegate.move(element, parentElement, afterElement, options));
+        move: function(element, parentElement, afterElement, done) {
+          return $$q.when($delegate.move(element, parentElement, afterElement));
         },
 
-        addClass: function(element, className, options) {
-          return this.setClass(element, className, [], options);
+        addClass: function(element, className, done) {
+          return this.setClass(element, className, [], done);
         },
 
-        removeClass: function(element, className, options) {
-          return this.setClass(element, [], className, options);
+        removeClass: function(element, className, done) {
+          return this.setClass(element, [], className, done);
         },
 
-        setClass: function(element, add, remove, options) {
-          return $delegate.setClass(element, add, remove, options);
+        setClass: function(element, add, remove, done) {
+          return $delegate.setClass(element, add, remove);
         },
 
         cancel: function(element) {
@@ -594,6 +580,7 @@
          }
       };
     }]);
+
   }])
   /**
    * @ngdoc directive
