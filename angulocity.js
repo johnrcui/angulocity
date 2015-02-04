@@ -25,363 +25,597 @@
   }
 
   /**
-   * Setup Velocity options based on attributes passed to the
-   * current element.
+   * Angulocity Module
    *
-   * @param   mixed   scope   Scope used to evaluate angular attribure expressions
-   * @param   mixed   iAttrs  Attribute list
-   * @param   bool    bIn     True if animating "In", false if animating "Out"
-   *
-   * @return  mixed           Velocity options object
-   *
+   * @ngmodule Angulocity
    */
-  function getNgvOptions (scope, iAttrs, bIn) {
-    var options = {
-      /* Velocity's default options */
-      duration: iAttrs.ngvDuration ? iAttrs.ngvDuration : 400,
-      delay: iAttrs.ngvDelay ? scope.$eval(iAttrs.ngvDelay) : false,
-      easing: iAttrs.ngvEasing ? iAttrs.ngvEasing : 'easeInOutQuart',
-      queue: iAttrs.ngvQueue ? iAttrs.ngvQueue !== 'false' ? iAttrs.ngvQueue : false : undefined,
-      begin: iAttrs.ngvBegin ? scope.$eval(iAttrs.ngvBegin) : undefined,
-      progress: iAttrs.ngvProgress ? scope.$eval(iAttrs.ngvProgress) : undefined,
-      complete: iAttrs.ngvComplete ? scope.$eval(iAttrs.ngvComplete) : undefined,
-      display: iAttrs.ngvDisplay ? iAttrs.ngvDisplay : undefined,
-      visibility: iAttrs.ngvVisibility ? iAttrs.ngvVisibility : undefined,
-      loop: iAttrs.ngvLoop ? scope.$eval(iAttrs.ngvLoop) : undefined,
-      mobileHA: iAttrs.ngvMobileHa ? scope.$eval(iAttrs.ngvMobileHa) :  true,
-      // group options
-      stagger: iAttrs.ngvStagger ? scope.$eval(iAttrs.ngvStagger) : undefined,
-      drag: iAttrs.ngvDrag ? scope.$eval(iAttrs.ngvDrag) : undefined,
-      // scroll options
-      container: undefined,
-      axis: iAttrs.ngvAxis ? scope.$eval(iAttrs.ngvAxis) : undefined,
-      offset: iAttrs.ngvOffset ?
-        scope.$eval(iAttrs.ngvOffset) ?
-          scope.$eval(iAttrs.ngvOffset) :
-          iAttrs.ngvOffset
-        : undefined
-    };
+  a.module('Angulocity', ['ng'])
+  .config(['$provide', function ($provide) {
+    var ELEMENT_NODE = 1;
+    var NGV_ANIMATE_STATE = '$$NGV$$';
+    var NGV_ANIMATING_CLASS = 'velocity-animating';
+    var rootAnimatorState = { initialized: false, running: true, disabled: false };
+    var animatorPromise;
+    var NGV_ATTR_EFFECT = 'ngvEffect';
+    var $queue = {};
 
-    /* Alter some options based on whether animating "In" or "Out" */
-    if (bIn === true) {
-      options.display = iAttrs.ngvInDisplay ? iAttrs.ngvInDisplay : options.display;
-      options.visibility = iAttrs.ngvInVisibility ? iAttrs.ngvInVisibility : options.visibility;
-      options.duration = iAttrs.ngvInDuration ? iAttrs.ngvInDuration : options.duration;
-      options.delay = iAttrs.ngvInDelay ? iAttrs.ngvInDelay : options.delay;
-    } else if (bIn === false) {
-      options.display = iAttrs.ngvOutDisplay ? iAttrs.ngvOutDisplay : options.display;
-      options.visibility = iAttrs.ngvOutVisibility ? iAttrs.ngvOutVisibility : options.visibility;
-      options.duration = iAttrs.ngvOutDuration ? iAttrs.ngvOutDuration : options.duration;
-      options.delay = iAttrs.ngvOutDelay ? iAttrs.ngvOutDelay : options.delay;
-    }
-
-    return options;
-  }
-
-
-  /**
-   * Utility function to generate hash
-   *
-   * @param   string  s       String to perform has on
-   *
-   * @return  string          Hashed value of string
-   */
-  function getNgvHash(s) {
-    var i = 0, x = 0, c;
-    for (; i < s.length; i++) {
-      c = s.charCodeAt(i);
-      x = ((x<<5)-x)+c;
-    }
-    x |= 0;
-    return x.toString(16);
-  }
-  /**
-   * Utility function to generate hash for class names.
-   *
-   * @param   string  klass   Whitespace separated class values
-   *
-   * @return  string          Hashed class values
-   *
-   */
-  function getNgvClass(klass) {
-    var i;
-    klass = klass.trim().split(/\s/);
-    for (i = 0; i < klass.length; i++) {
-      klass[i] = 'ngv' + getNgvHash('ngv' + klass[i].toLowerCase());
-    }
-    return klass.join(' ');
-  }
-
-  /**
-   * Get collection of nodes within an element via selector
-   *
-   * @param   element iElement  Root element node containing the collection
-   * @param   string  selector  Query selector for finding child elements
-   *
-   * @return  array             Node collection
-   *
-   */
-  function getNgvCollection(iElement, selector) {
-    var selectors,
-        patt = /(.*?).ngv\((\w+)\)/,
-        m;
-    if (selector) {
-      selectors = selector.trim().split(/\s*,\s*/);
-      for (var i = 0; i < selectors.length; i++) {
-        m = patt.exec(selectors[i]);
-        if (m) {
-          selectors[i] = m[1] + '.' + getNgvClass(m[2]);
+    // From https://github.com/angular/bower-angular-animate/blob/master/angular-animate.js
+    function extractElementNode(element) {
+      for (var i = 0; i < element.length; i++) {
+        var elm = element[i];
+        if (elm.nodeType === ELEMENT_NODE) {
+          return elm;
         }
       }
-      selector = selectors.join(',');
-      return a.element(iElement[0].querySelectorAll(selector));
-    } else {
-      return iElement.children();
     }
-  }
 
-  /**
-   * Base directive link function
-   *
-   * @param   object  scope     Scope object used for evaluation
-   * @param   object  iElement  Element to perform animation on
-   * @param   object  iAttrs    reference to directive attributes
-   * @param   string  collectionAttr Attribute name of element child selector
-   *
-   */
-  function ngvLink(scope, iElement, iAttrs, collectionAttr, noToggle) {
-    // Unwatchers
-    var unwatch = null;
-    // Flags
-    var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : true,
-        eager = a.isDefined(iAttrs.ngvEager) ? iAttrs.ngvEager !== 'false' : noToggle || false,
-        animated = false,
-        collection = false;
-    // Props
-    var effect = 'fade';
-    /* Attempt to evaluate ngvEffect if specified */
-    if (iAttrs.ngvEffect) {
-      effect = scope.$eval(iAttrs.ngvEffect);
-      if (!effect) {
-        effect = iAttrs.ngvEffect;
-      } else if (!a.isObject(effect)) {
-        scope.$watch(iAttrs.ngvEffect, function(n) {
-          effect = n;
-        });
-      }
+    function stripCommentsFromElement(element) {
+      return a.element(extractElementNode(element));
     }
-    /* Check if collectionAttr is valid */
-    if (a.isDefined(collectionAttr) && !a.isDefined(iAttrs[collectionAttr])) {
-      collectionAttr = 'ngvSelector';
-    }
-    collection = a.isDefined(iAttrs[collectionAttr]);
 
-    if (effect) {
-      /**
-       * ngvToggle
-       */
-      if (!noToggle && iAttrs.ngvToggle) {
-        scope.$watch(iAttrs.ngvToggle, function(n, o) {
-          var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
-          var options = getNgvOptions(scope, iAttrs, n);
-          if (!eager && n === o) {
-            options.duration = 0; // do not animate
+    /*
+     * utility function found in ngAnimate source
+     * commenting in case needed later
+     *
+    function prepareElement(element) {
+      return element && a.element(element);
+    }
+    */
+
+    /*
+     * utility functions found from ngAnimate source
+     * commenting in case needed later
+     *
+    function isMatchingElement(elm1, elm2) {
+      return extractElementNode(elm1) === extractElementNode(elm2);
+    }
+    */
+
+    // From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys
+    if (!Object.keys) {
+      Object.keys = (function() {
+        var hasOwnProperty = Object.prototype.hasOwnProperty,
+            hasDontEnumBug = !({ toString: null }).propertyIsEnumerable('toString'),
+            dontEnums = [
+              'toString',
+              'toLocaleString',
+              'valueOf',
+              'hasOwnProperty',
+              'isPrototypeOf',
+              'propertyIsEnumerable',
+              'constructor'
+            ],
+            dontEnumsLength = dontEnums.length;
+
+        return function(obj) {
+          if (typeof obj !== 'object' && (typeof obj !== 'function' || obj === null)) {
+            throw new TypeError('Object.keys called on non-object');
           }
-          v(element, 'stop');
-          if (a.isString(effect)) {
-            v(element, effect+(n ? 'In' : 'Out'), options);
-          } else {
-            if (animated) {
-              v(element, 'reverse', options);
-            } else {
-              v(element, effect, options);
-              animated = true;
+
+          var result = [], prop, i;
+
+          for (prop in obj) {
+            if (hasOwnProperty.call(obj, prop)) {
+              result.push(prop);
             }
           }
-        });
-      /**
-       * ngvAnimate
-       */
-      } else if (iAttrs.ngvAnimate) {
-        unwatch = scope.$watch(iAttrs.ngvAnimate, function (n, o) {
-          if (n) {
-            if ((n !== o) || eager) {
-              var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
-              var options = getNgvOptions(scope, iAttrs);
-              v(element, effect, options);
-              if (!repeat) {
-                unwatch();
+
+          if (hasDontEnumBug) {
+            for (i = 0; i < dontEnumsLength; i++) {
+              if (hasOwnProperty.call(obj, dontEnums[i])) {
+                result.push(dontEnums[i]);
               }
             }
           }
+          return result;
+        };
+      }());
+    }
+
+    function getEventFlags (scope, attrs) {
+      return {
+        once: a.isDefined(attrs.ngvOnce) && (attrs.ngvOnce !== 'false'),
+        eager: a.isDefined(attrs.ngvEager) && (attrs.ngvEager !== 'false'),
+        prevented: a.isDefined(attrs.ngvPreventDefault) && (attrs.ngvPreventDefault !== 'false'),
+        targeted: a.isDefined(attrs.ngvEventTargeted) && (attrs.ngvEventTargeted !== 'false'),
+        global: a.isDefined(attrs.ngvAnimator) && attrs.ngvGlobal && (attrs.ngvGlobal !== 'false'),
+        selector: attrs.ngvSelect && attrs.ngvSelect || attrs.ngvCollection && attrs.ngvCollection,
+        effect: getAnimationEffect(scope, attrs),
+      };
+    }
+
+    function getAnimationOptions (scope, attrs, dir) {
+      return {
+        /* Velocity's default options */
+        duration: attrs.ngvDuration || (dir && attrs.ngvInDuration || attrs.ngvOutDuration),
+        delay: (attrs.ngvDelay && scope.$eval(attrs.ngvDelay)) || (dir && attrs.ngvInDelay || attrs.ngvOutDelay),
+        easing: attrs.ngvEasing && attrs.ngvEasing ||  'easeInOutQuart',
+        queue: attrs.ngvQueue && attrs.ngvQueue !== 'false' && attrs.ngvQueue,
+        display: attrs.ngvDisplay,
+        visibility: attrs.ngvVisibility,
+        loop: attrs.ngvLoop && scope.$eval(attrs.ngvLoop),
+        mobileHA: attrs.ngvMobileHa ? scope.$eval(attrs.ngvMobileHa) : true,
+        // group options
+        stagger: attrs.ngvStagger && scope.$eval(attrs.ngvStagger),
+        drag: attrs.ngvDrag && scope.$eval(attrs.ngvDrag),
+        // scroll options
+        axis: attrs.ngvScrollAxis && scope.$eval(attrs.ngvScrollAxis),
+        offset: scope.$eval(attrs.ngvOffset) && attrs.ngvOffset,
+        disabled: attrs.disabled && (attrs.disabled !== 'false')
+      };
+    }
+
+    function getAnimationEffect (scope, attrs) {
+
+      function tokenizeStringEffect (s) {
+        var $effects = {};
+        s = s.split(',');
+        if (s.length > 1) {
+          $effects.leave = a.isDefined(v.Redirects[s[1]]) && s[1] || undefined;
+        }
+        if (s.length > 0) {
+          $effects.enter = a.isDefined(v.Redirects[s[0]]) && s[0] || undefined;
+        } else {
+          return undefined;
+        }
+        return $effects;
+      }
+
+      return  attrs[NGV_ATTR_EFFECT] &&
+              /^[\w\.\-]+?(,[\w\.\-]+)?$/i.test(attrs[NGV_ATTR_EFFECT]) &&
+              tokenizeStringEffect(attrs[NGV_ATTR_EFFECT]) ||
+              scope.$eval(attrs[NGV_ATTR_EFFECT]) || {};
+
+//      return attrs[fromAttr] && scope.$eval(attrs[fromAttr]) || attrs[fromAttr] || 'fade'
+    }
+
+    function getCollection (selector, element) {
+      element = a.isElement(element) && element || a.element(element);
+      selector = !/\s*\*\s*/.test(selector) && selector.replace(/\:ngv\((\w+)\)/g, function (match, $1) {
+          return '.' + getClassHash($1.toLowerCase());
         });
-      /**
-       * ngvReceive
-       */
-      } else if (iAttrs.ngvReceive) {
-        unwatch = scope.$on(iAttrs.ngvReceive, function () {
-          var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
-          var options = getNgvOptions(scope, iAttrs);
-          v(element, effect, options);
-          if (!repeat) {
-            unwatch();
+
+      return selector ? a.element(element[0].querySelectorAll(selector)) : element.children();
+    }
+
+    function camelCase(str) {
+      return str.
+              replace(/^data-/i, '').
+              toLowerCase().
+              replace(/-(.)/g, function (m, $1) {
+                return $1.toUpperCase();
+              });
+    }
+
+    function mapAttrs(rawAttrs) {
+      var attrs = {};
+      if (a.isElement(rawAttrs)) {
+        rawAttrs = rawAttrs.context && rawAttrs.context.attributes || {};
+      }
+
+      for (var i = 0; i < rawAttrs.length; i++) {
+        attrs[camelCase(rawAttrs[i].name)] = rawAttrs[i].value;
+      }
+
+      return attrs;
+    }
+
+    function getHash(s) {
+      var i = 0, x = 0, c;
+      for (; i < s.length; i++) {
+        c = s.charCodeAt(i);
+        x = ((x<<5)-x)+c;
+      }
+      x |= 0;
+      return x.toString(16);
+    }
+
+    function getClassHash(klass) {
+      var i;
+      klass = klass.trim().split(/\s/);
+      for (i = 0; i < klass.length; i++) {
+        klass[i] = 'ngv' + getHash('ngv' + klass[i].toLowerCase());
+      }
+      return klass.join(' ');
+    }
+
+    $provide.provider('$ngvAnimator', function $ngvAnimatorProvider() {
+      var $sequence = {};
+      var $defaults = {
+        effects: v.RegisterEffect.packagedEffects,
+        animationOptions: {
+
+        }
+      };
+
+      function RegisterSequence(name, sequence) {
+        if (name && a.isObject(sequence)) {
+          $sequence[name] = sequence;
+        }
+      }
+
+      function DeregisterSequence(name) {
+        if (name in $sequence) {
+          delete $sequence[name];
+        }
+      }
+
+      function DeregisterEffect(name) {
+        if (name in v.Redirects) {
+          delete v.Redirects[name];
+        }
+      }
+
+      var $ngvAnimator = ['$rootElement', '$rootScope', '$templateRequest', '$document', '$$q', function ($rootElement, $rootScope, $templateRequest, $document, $$q) {
+        v.Promise = $$q;
+
+        $rootElement.data(NGV_ANIMATE_STATE, rootAnimatorState);
+
+        /*! this section is derived from angular-animate source */
+        (function watchPendingRequest() {
+          var unwatch = $rootScope.$watch(
+            function() {
+              return $templateRequest.totalPendingRequests;
+            },
+            function(n) {
+              if (n === 0) {
+                unwatch();
+                $rootScope.$$postDigest(function() {
+                  $rootScope.$$postDigest(function () {
+                    rootAnimatorState.initialized = true;
+                  });
+                });
+              }
+            }
+          );
+        })();
+
+        function watchAnimatorState () {
+          if (a.isDefined(animatorPromise)) { return; }
+
+          var defer = $$q.defer();
+          animatorPromise = defer.promise;
+          rootAnimatorState.running = true;
+
+          var unwatch = $rootScope.$watch(
+            function () {
+              var w = $document[0].getElementsByClassName(NGV_ANIMATING_CLASS).length;
+              return w;
+            },
+            function (n) {
+              if (n === 0) {
+                unwatch();
+                defer.resolve();
+                $rootScope.$$postDigest(function() {
+                  $queue = {};
+                  rootAnimatorState.running = false;
+                  $rootScope.$$postDigest(function() {
+                    animatorPromise = undefined;
+                  });
+                });
+              }
+            }
+          );
+        }
+
+        function select(selector, element) {
+          return getCollection(selector, element || $document);
+        }
+
+        function runAnimation(element, effect, options, postOperation) {
+          if (!rootAnimatorState.initialized || (options && options.disabled) || !a.isElement(element)) { return $$q.when(false); }
+
+          element = a.element(element);
+
+          if (arguments.length === 1) {
+            effect = getAnimationEffect(element.scope(), mapAttrs(element));
+            options = getAnimationOptions(element.scope(), mapAttrs(element));
           }
+
+
+          watchAnimatorState();
+          return v(element, effect, options)
+          .finally(function() {
+            $rootScope.$$postDigest(function() {
+              return postOperation && postOperation();
+            });
+          });
+        }
+
+        function runSequence (name, container) {
+          var seq = a.isString(name) && $sequence[name] || name;
+          container = container && container || $rootElement;
+
+          if (a.isArray(seq)) {
+            for (var i = 0; i < seq.length; i++) {
+              seq[i] = {e: getCollection(seq[i].selector, container), p: seq[i].properties, o: seq[i].options};
+            }
+
+            return v.RunSequence(seq);
+          }
+        }
+
+        function cancelAnimation (mixed, element) {
+          if (arguments.length === 2 && a.isString(mixed)) {
+            element = getCollection(mixed, element);
+            v(element, 'stop');
+          } else if (a.isElement(mixed)) {
+            v(mixed, 'stop');
+          }
+        }
+
+        // Derived from Velocity.js CSS stack
+        function addClass (element, name) {
+          element.addClass(getClassHash(name));
+        }
+
+        function removeClass (element, name) {
+          element.removeClass(getClassHash(name));
+        }
+
+        return {
+          animate: runAnimation,
+          select: select,
+          perform: runSequence,
+          class: getClassHash,
+          addClass: addClass,
+          removeClass: removeClass,
+          cancel: cancelAnimation
+        };
+      }];
+
+      return {
+        $get: $ngvAnimator,
+        defaults: $defaults,
+        effects: {
+          list: function () {
+            return Object.keys(v.Redirects);
+          },
+          register: v.RegisterEffect,
+          deregister: DeregisterEffect
+        },
+        sequences: {
+          list: function () {
+            return Object.keys($sequence);
+          },
+          register: RegisterSequence,
+          deregister: DeregisterSequence
+        },
+      };
+    });
+
+    $provide.factory('$$ngvLinker', ['$ngvAnimator', '$timeout', function ($ngvAnimator, $timeout) {
+      function handleToggleEvents (scope, element, attrs, container) {
+        return attrs.ngvToggle && scope.$watch(attrs.ngvToggle, function (n, o) {
+          var options = getAnimationOptions(scope, attrs, n);
+          var flags = getEventFlags(scope, attrs);
+          var selected = container && getCollection(flags.selector || '*', container || element) || element;
+          var animated = false;
+
+          if (!flags.eager && n === o) {
+            options.duration = 0;
+          }
+
+          if (n) {
+            $ngvAnimator.animate(selected, flags.effect.enter, options);
+          } else if (a.isDefined(flags.effect.leave)) {
+            $ngvAnimator.animate(selected, flags.effect.leave, options);
+          } else {
+            if (animated) {
+              $ngvAnimator.animate(selected, 'reverse');
+            } else {
+              $ngvAnimator.animate(selected, flags.effect.enter, options);
+            }
+          }
+          animated = true;
         });
-      /**
-       * ngvTrigger
-       */
-      } else if (iAttrs.ngvTrigger) {
-        unwatch = scope.$watch(iAttrs.ngvTrigger, function (n, o) {
-          if (n !== o) {
-            var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement;
-            var options = getNgvOptions(scope, iAttrs);
-            v(element, effect, options);
-            if (!repeat) {
+      }
+
+      function handleAnimateEvent (scope, element, attrs, container) {
+        var unwatch = attrs.ngvAnimate && scope.$watch(attrs.ngvAnimate, function (n, o) {
+          var options = getAnimationOptions(scope, attrs);
+          var flags = getEventFlags(scope, attrs);
+          var selected = container && getCollection(flags.selector || '*', container || element) || element;
+
+          if (n && ((n !== o) || flags.eager)) {
+            $ngvAnimator.animate(selected, flags.effect.enter, options);
+            if (flags.once) {
               unwatch();
             }
           }
         });
-      /**
-       * ngvEvent
-       */
-      } else if (iAttrs.ngvEvent) {
-        // force event binding on next digest
-        setTimeout(function() {
-          var element = collection ? getNgvCollection(iElement, iAttrs[collectionAttr]) : iElement,
-              prevent = a.isDefined(iAttrs.ngvPreventDefault) ? iAttrs.ngvPreventDefault !== 'false' : false,
-              animall = a.isDefined(iAttrs.ngvEventTargeted) ? iAttrs.ngvEventTargeted === 'false' : false,
-              options = getNgvOptions(scope, iAttrs);
-          element.on(iAttrs.ngvEvent, function (e) {
-            if (animall) {
-              v(element, effect, options);
+
+        return unwatch;
+      }
+
+      function handleReceiveEvent (scope, element, attrs, container) {
+        var unwatch = attrs.ngvReceive && scope.$on(attrs.ngvReceive, function () {
+          var options = getAnimationOptions(scope, attrs);
+          var flags = getEventFlags(scope, attrs);
+          var selected = container && getCollection(flags.selector || '*', container || element) || element;
+
+          $ngvAnimator.animate(selected, flags.effect.enter, options);
+          if (flags.once) {
+            unwatch();
+          }
+        });
+
+        return unwatch;
+      }
+
+      function handleWatchEvent (scope, element, attrs, container) {
+        var unwatch = attrs.ngvWatch && scope.$watch(attrs.ngvWatch, function (n, o) {
+          var options = getAnimationOptions(scope, attrs);
+          var flags = getEventFlags(scope, attrs);
+          var selected = container && getCollection(flags.selector || '*', container || element) || element;
+
+          if (n !== o || flags.eager) {
+            $ngvAnimator.animate(selected, flags.effect.enter, options);
+            if (flags.once) {
+              unwatch();
+            }
+          }
+        });
+
+        return unwatch;
+      }
+
+      function handleBrowserEvent (scope, element, attrs, container) {
+        $timeout(function () {
+          var options = getAnimationOptions(scope, attrs);
+          var flags = getEventFlags(scope, attrs);
+          var selected = container && getCollection(flags.selector || '*', container || element) || element;
+          var unwatch = attrs.ngvEvent && function () { selected.off(attrs.ngvEvent); };
+
+         return unwatch && selected.on(attrs.ngvEvent, function (e) {
+            if (flags.targeted) {
+              $ngvAnimator.animate(e.toElement, flags.effect.enter, options);
             } else {
-              v(e.toElement, effect, options);
+              $ngvAnimator.animate(selected, flags.effect.enter, options);
             }
 
-            if (!repeat) {
-              element.off(iAttrs.ngvEvent);
+            if (flags.once) {
+              unwatch();
             }
 
-            if (prevent) {
+            if (flags.prevented) {
               e.preventDefault();
             }
           });
         });
       }
-    }
-  }
 
-  /**
-   * Angulocity Module
-   *
-   * @ngmodule Angulocity
-   */
-  a.module('Angulocity', [])
-  .config(['$provide', '$animateProvider', '$ngvAnimator', function ($provide, $animateProvider, $ngvAnimator) {
-
-  }])
-  .provider('$ngvAnimator', function ngvAnimatorProvider() {
-    var sequences = [];
-    var defaults = {
-
-    };
-
-    this.defaults = defaults;
-    this.RegisterEffect = a.isDefined(v.RegisterEffect) ? v.RegisterEffect : a.noop;
-    this.RegisterSequence = function(name, sequence) {
-      if (name && a.isObject(sequence)) {
-        sequence[getNgvClass] = sequence;
-      }
-    };
-    this.$get = ['$document', function ($document) {
       return {
-        Velocity: v,
-        animate: function (klass, effect, options) {
-          var collection = getNgvCollection($document, klass);
-          if (collection) {
-            return v(collection, effect, options);
-          }
+        $$utilities: {
+          getAnimationOptions: getAnimationOptions,
+          getAnimationEffect: getAnimationEffect,
+          getEventFlags: getEventFlags,
         },
-        element: function (klass) {
-          return getNgvCollection($document, klass);
-        },
-        animateSequence: function(arg) {
-          var seq, iSeq;
-          if (a.isString(arg)) {
-            seq = sequences[getNgvClass(name)];
-            iSeq = [];
-            for (var i = 0 ; i < seq.length; i++) {
-              // Generate correct sequence format
-              iSeq.push({e: getNgvCollection($document, seq[i].class), p: seq[i].properties, o: seq[i].options});
-            }
-            return v.RunSequence(iSeq);
-          } else if (a.isObject(arg)) {
-            return v.RunSequence(arg);
-          }
-        }
+        toggleHandler: handleToggleEvents,
+        animateHandler: handleAnimateEvent,
+        receiveHandler: handleReceiveEvent,
+        watchHandler: handleWatchEvent,
+        eventHandler: handleBrowserEvent,
+
       };
-    }];
-  })
+    }]);
+
+    $provide.decorator('$animate', ['$delegate', '$ngvAnimator', '$$q', function ($delegate, $ngvAnimator, $$q) {
+
+      return {
+
+        animate: function(element, className, from, to, animationCompleted, options) {
+          if (arguments.length === 3) {
+            return $ngvAnimator.animate(element, className, from);
+          } else {
+            return $delegate.animate(element, className, from, to, animationCompleted, options);
+          }
+        },
+
+        enter: function(element, parentElement, afterElement, options) {
+          var $element = stripCommentsFromElement(element);
+          var $attrs = mapAttrs($element[0].attributes);
+          if (a.isDefined($attrs.ngvEnter)) {
+            $delegate.enter(element, parentElement, afterElement, options);
+            var $options = getAnimationOptions($element.scope(), $attrs);
+            var $effect = getAnimationEffect($element.scope(), $attrs);
+
+            if ($attrs.ngRepeat && $options.stagger) {
+              var $hash = getClassHash($attrs.ngRepeat.replace(/\s/g,''));
+              $queue[$hash] = a.isDefined($queue[$hash]) && ++$queue[$hash] || 0;
+              var $index = $queue[$hash];
+              $options.delay = ($options.delay || 0) + $options.stagger * $index;
+            }
+            $ngvAnimator.animate($element, {opacity: 0}, {duration: 0});
+            return $ngvAnimator.animate($element, $effect.enter, $options);
+          } else {
+            return $delegate.enter(element, parentElement, afterElement, options);
+          }
+        },
+
+        leave: function(element, options) {
+          var $element = stripCommentsFromElement(element);
+          var $attrs = mapAttrs(element[0].attributes);
+          if (a.isDefined($attrs.ngvLeave)) {
+            var $options = getAnimationOptions(element.scope(), $attrs);
+            var $effect = getAnimationEffect(element.scope(), $attrs);
+            $options.display = 'none';
+
+            if ($attrs.ngRepeat && $options.stagger) {
+              var $hash = getClassHash($attrs.ngRepeat.replace(/\s/g,''));
+              $queue[$hash] = a.isDefined($queue[$hash]) && ++$queue[$hash] || 0;
+              var $index = $queue[$hash];
+              $options.delay = ($options.delay || 0) + $options.stagger * $index;
+            }
+
+            return $ngvAnimator.animate($element, $effect.leave || $effect.enter, $options, function () { $delegate.leave(element, options); });
+          } else {
+            return $delegate.leave(element, options);
+          }
+        },
+
+        move: function(element, parentElement, afterElement, options) {
+          return $$q.when($delegate.move(element, parentElement, afterElement, options));
+        },
+
+        addClass: function(element, className, options) {
+          return this.setClass(element, className, [], options);
+        },
+
+        removeClass: function(element, className, options) {
+          return this.setClass(element, [], className, options);
+        },
+
+        setClass: function(element, add, remove, options) {
+          return $delegate.setClass(element, add, remove, options);
+        },
+
+        cancel: function(element) {
+          $ngvAnimator.cancel(element);
+          $delegate.cancel(element);
+        },
+
+        enabled: function(value, element) {
+          switch (arguments.length) {
+            case 2:
+              var data = element.data(NGV_ANIMATE_STATE) || {};
+              data.disabled = !value;
+              element.data(NGV_ANIMATE_STATE, data);
+            break;
+
+            case 1:
+              rootAnimatorState.disabled = !value;
+            break;
+            default:
+              value = !rootAnimatorState.disabled;
+            break;
+          }
+          return !!value && $delegate.enabled(value, element);
+         }
+      };
+    }]);
+  }])
   /**
    * @ngdoc directive
    * @name  ngvSlide
    *
    */
-  .directive('ngvSlide', [function () {
+  .directive('ngvSlide', ['$ngvAnimator', '$$ngvLinker', function ($ngvAnimator, $$ngvLinker) {
     return {
       restrict      : 'A',
-      scope         :  false,
-      link          : function (scope, iElement, iAttrs) {
-        // Unwatchers
-        var ngvIn = null,
-            ngvOut = null;
-        var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : true,
-            eager = a.isDefined(iAttrs.ngvEager) ? iAttrs.ngvEager !== 'false' : false;
+      $scope         :  false,
+      link          : function ($scope, $element, $attrs) {
+        var unwatch = $attrs.ngvSlide && $scope.$watch($attrs.ngvSlide, function (n, o) {
+          var options = $$ngvLinker.$$utilities.getAnimationOptions($scope, $attrs, n);
+          var flags = $$ngvLinker.$$utilities.getEventFlags($scope, $attrs);
 
-        // If animation switch provided
-        if (iAttrs.ngvSlide) {
-          ngvIn = scope.$watch(iAttrs.ngvSlide, function(n, o) {
-            var options = getNgvOptions(scope, iAttrs, n);
-            if (!eager && n === o) {
-              if (n) {
-                iElement.css({display: options.display || 'inherited'});
-              } else {
-                iElement.css({display: options.display || 'none'});
-              }
-            } else {
-              if (n) {
-                v(iElement, 'stop');
-                v(iElement, 'slideDown', options);
-              } else {
-                v(iElement, 'stop');
-                v(iElement, 'slideUp', options);
-              }
-            }
-          });
-        } else {
-          if (iAttrs.ngvIn) {
-            ngvIn = scope.$watch(iAttrs.ngvIn, function (n, o) {
-              var options = getNgvOptions(scope, iAttrs, true);
-              if (n !== o && n) {
-                v(iElement, 'slideDown', options);
-                if (!repeat) {
-                  ngvIn();
-                }
-              }
-            });
+          if (!flags.eager && n === o) {
+            options.duration = 0;
           }
-          if (iAttrs.ngvOut) {
-            ngvOut = scope.$watch(iAttrs.ngvOut, function(n, o) {
-              var options = getNgvOptions(scope, iAttrs, false);
-              if (n !== o && n) {
-                v(iElement, 'slideUp', options);
-                if (!repeat) {
-                  ngvOut();
-                }
-              }
-            });
-          }
-        }
+          $ngvAnimator.animate($element, (n && 'slideDown' || 'slideUp'), options);
+        });
+
+        $scope.$on('$destroy', unwatch);
       }
     };
   }])
@@ -390,61 +624,22 @@
    * @name  ngvFade
    *
    */
-  .directive('ngvFade', [function () {
+  .directive('ngvFade', ['$ngvAnimator', '$$ngvLinker', function ($ngvAnimator, $$ngvLinker) {
     return {
       restrict      : 'A',
-      scope         :  false,
-      link          : function (scope, iElement, iAttrs) {
-        // Unwatchers
-        var ngvIn = null,
-            ngvOut = null;
-        var repeat = a.isDefined(iAttrs.ngvOnce) ? iAttrs.ngvOnce === 'false' : true,
-            eager = a.isDefined(iAttrs.ngvEager) ? iAttrs.ngvEager !== 'false' : false;
+      $scope         :  false,
+      link          : function ($scope, $element, $attrs) {
+        var unwatch = $attrs.ngvSlide && $scope.$watch($attrs.ngvSlide, function (n, o) {
+          var options = $$ngvLinker.$$utilities.getAnimationOptions($scope, $attrs, n);
+          var flags = $$ngvLinker.$$utilities.getEventFlags($scope, $attrs);
 
-        // If animation switch provided
-        if (iAttrs.ngvFade) {
-          ngvIn = scope.$watch(iAttrs.ngvFade, function(n, o) {
-            var options = getNgvOptions(scope, iAttrs, n);
-            if (!eager && n === o) {
-              if (n) {
-                iElement.css({display: options.display || 'inherited', opacity: 1});
-              } else {
-                iElement.css({display: options.display || 'none', opacity: 0});
-              }
-            } else {
-              if (n) {
-                v(iElement, 'stop');
-                v(iElement, 'fadeIn', options);
-              } else {
-                v(iElement, 'stop');
-                v(iElement, 'fadeOut', options);
-              }
-            }
-          });
-        } else {
-          if (iAttrs.ngvIn) {
-            ngvIn = scope.$watch(iAttrs.ngvIn, function (n, o) {
-              var options = getNgvOptions(scope, iAttrs, true);
-              if (n !== o && n) {
-                v(iElement, 'fadeIn', options);
-                if (!repeat) {
-                  ngvIn();
-                }
-              }
-            });
+          if (!flags.eager && n === o) {
+            options.duration = 0;
           }
-          if (iAttrs.ngvOut) {
-            ngvOut = scope.$watch(iAttrs.ngvOut, function(n, o) {
-              var options = getNgvOptions(scope, iAttrs, false);
-              if (n !== o && n) {
-                v(iElement, 'fadeOut', options);
-                if (!repeat) {
-                  ngvOut();
-                }
-              }
-            });
-          }
-        }
+          $ngvAnimator.animate($element, (n && 'fadeIn' || 'fadeOut'), options);
+        });
+
+        $scope.$on('$destroy', unwatch);
       }
     };
   }])
@@ -453,32 +648,50 @@
    * @name  ngvClass
    *
    */
-  .directive('ngvClass', [function () {
+  .directive('ngvClass', ['$ngvAnimator', function ($ngvAnimator) {
     return {
       restrict      : 'A',
-      scope         :  false,
-      link          : function (scope, iElement, iAttrs) {
+      $scope         :  false,
+      link          : function ($scope, $element, $attrs) {
         var klass;
+        var unwatch;
+
+        function addClassArray(r) {
+          for (var i = 0; i < r.length; i++) {
+            $ngvAnimator.addClass($element, r[i]);
+          }
+        }
+
+        function setClassObject(n) {
+          a.forEach(n, function(val, prop) {
+            if (val) {
+              $ngvAnimator.addClass($element, prop);
+            } else {
+              $ngvAnimator.removeClass($element, prop);
+            }
+          });
+        }
+
+
         /* Force evaluation of ngvClass to see if object or string supplied */
-        if (a.isDefined(iAttrs.ngvClass)) {
-          klass = scope.$eval(iAttrs.ngvClass);
-          if (!klass) {
-            klass = iAttrs.ngvClass;
+        if (a.isDefined($attrs.ngvClass)) {
+          if (/^(\[|\{).*?(\}|\])$/.test($attrs.ngvClass.trim())) {
+            klass = $scope.$eval($attrs.ngvClass);
+          } else {
+            klass = $attrs.ngvClass.split(/\s/);
           }
 
-          if (a.isObject(klass)) {
-            scope.$watch(iAttrs.ngvClass, function (n) {
-              a.forEach(n, function (v, p) {
-                if (v) {
-                  iElement.addClass(getNgvClass(p));
-                } else {
-                  iElement.removeClass(getNgvClass(p));
-                }
-              });
-            });
-          } else {
-            iElement.addClass(getNgvClass(iAttrs.ngvClass));
+          if (a.isArray(klass)) {
+            addClassArray(klass);
+          } else if (a.isObject(klass)) {
+            unwatch = $scope.$watch($attrs.ngvClass, function (n) {
+              setClassObject(n);
+            }, true);
           }
+        }
+
+        if (unwatch) {
+          $scope.$on('$destroy', unwatch);
         }
       }
     };
@@ -488,13 +701,19 @@
    * @name  ngvAnimator
    *
    */
-  .directive('ngvAnimator', ['$document', function ($document) {
+  .directive('ngvAnimator', ['$$ngvLinker', '$rootElement', function ($$ngvLinker, $rootElement) {
     return {
       restrict      : 'EA',
-      scope         :  true,
-      link          : function (scope, iElement, iAttrs) {
-        var element = a.isDefined(iAttrs.ngvGlobal) ? $document : iElement.parent();
-        ngvLink(scope, element, iAttrs, 'ngvSelect', true);
+      $scope         :  true,
+      link          : function ($scope, $element, $attrs) {
+        var container = $element.parent() && $element.parent() || $rootElement;
+        var unwatch = $$ngvLinker.toggleHandler($scope, $element, $attrs, container) ||
+                      $$ngvLinker.animateHandler($scope, $element, $attrs, container) ||
+                      $$ngvLinker.receiveHandler($scope, $element, $attrs, container) ||
+                      $$ngvLinker.watchHandler($scope, $element, $attrs, container) ||
+                      $$ngvLinker.eventHandler($scope, $element, $attrs, container);
+
+        $scope.$on('$destroy', unwatch);
       }
     };
   }])
@@ -503,12 +722,18 @@
    * @name  ngvCollection
    *
    */
-  .directive('ngvCollection', [function () {
+  .directive('ngvCollection', ['$ngvAnimator', '$$ngvLinker', function ($ngvAnimator, $$ngvLinker) {
     return {
       restrict      : 'EA',
-      scope         :  false,
-      link          : function (scope, iElement, iAttrs) {
-        ngvLink(scope, iElement, iAttrs, 'ngvCollection');
+      $scope         :  false,
+      link          : function ($scope, $element, $attrs) {
+        var unwatch = $$ngvLinker.toggleHandler($scope, $element, $attrs, $element) ||
+                      $$ngvLinker.animateHandler($scope, $element, $attrs, $element) ||
+                      $$ngvLinker.receiveHandler($scope, $element, $attrs, $element) ||
+                      $$ngvLinker.watchHandler($scope, $element, $attrs, $element) ||
+                      $$ngvLinker.eventHandler($scope, $element, $attrs, $element);
+
+        $scope.$on('$destroy', unwatch);
       }
     };
   }])
@@ -517,15 +742,21 @@
    * @name  ngvElement
    *
    */
-  .directive('ngvElement', [function () {
+  .directive('ngvElement', ['$ngvAnimator', '$$ngvLinker', function ($ngvAnimator, $$ngvLinker) {
     return {
       restrict      : 'EA',
-      scope         :  false,
-      link          : function (scope, iElement, iAttrs) {
-        if (iAttrs.ngvElement) {
-          iElement.addClass(getNgvClass(iAttrs.ngvElement));
+      $scope         :  false,
+      link          : function ($scope, $element, $attrs) {
+        var unwatch = $$ngvLinker.toggleHandler($scope, $element, $attrs) ||
+                      $$ngvLinker.animateHandler($scope, $element, $attrs) ||
+                      $$ngvLinker.receiveHandler($scope, $element, $attrs) ||
+                      $$ngvLinker.watchHandler($scope, $element, $attrs) ||
+                      $$ngvLinker.eventHandler($scope, $element, $attrs);
+
+        if ($attrs.ngvElement) {
+          $element.addClass($ngvAnimator.class($attrs.ngvElement));
         }
-        ngvLink(scope, iElement, iAttrs);
+        $scope.$on('$destroy', unwatch);
       }
     };
   }])
