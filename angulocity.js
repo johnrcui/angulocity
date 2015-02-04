@@ -247,7 +247,15 @@
       }
 
       var $ngvAnimator = ['$rootElement', '$rootScope', '$document', '$q', function ($rootElement, $rootScope, $document, $q) {
-        v.Promise = $q;
+        v.Promise = function (fn) {
+          var defer = $q.defer();
+
+          if (a.isFunction(fn)) {
+            fn(defer.resolve, defer.reject);
+          }
+
+          return defer.promise;
+        };
 
         $rootElement.data(NGV_ANIMATE_STATE, rootAnimatorState);
 
@@ -534,7 +542,7 @@
               $options.delay = ($options.delay || 0) + $options.stagger * $index;
             }
 
-            return $ngvAnimator.animate($element, $effect.leave || $effect.enter, $options, function () { $delegate.leave(element, options); });
+            return $ngvAnimator.animate($element, $effect.leave || $effect.enter, $options, function () { $delegate.leave(element); });
           } else {
             return $delegate.leave(element);
           }
@@ -545,15 +553,15 @@
         },
 
         addClass: function(element, className, done) {
-          return this.setClass(element, className, [], done);
+          //return this.setClass(element, className, [], done);
         },
 
         removeClass: function(element, className, done) {
-          return this.setClass(element, [], className, done);
+          //return this.setClass(element, [], className, done);
         },
 
         setClass: function(element, add, remove, done) {
-          return $delegate.setClass(element, add, remove);
+          //return $delegate.setClass(element, add, remove);
         },
 
         cancel: function(element) {
