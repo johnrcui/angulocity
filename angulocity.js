@@ -246,15 +246,15 @@
         }
       }
 
-      var $ngvAnimator = ['$rootElement', '$rootScope', '$document', '$$q', function ($rootElement, $rootScope, $document, $$q) {
-        v.Promise = $$q;
+      var $ngvAnimator = ['$rootElement', '$rootScope', '$document', '$q', function ($rootElement, $rootScope, $document, $q) {
+        v.Promise = $q;
 
         $rootElement.data(NGV_ANIMATE_STATE, rootAnimatorState);
 
         function watchAnimatorState () {
           if (a.isDefined(animatorPromise)) { return; }
 
-          var defer = $$q.defer();
+          var defer = $q.defer();
           animatorPromise = defer.promise;
           rootAnimatorState.running = true;
 
@@ -284,7 +284,7 @@
         }
 
         function runAnimation(element, effect, options, postOperation) {
-          if (!rootAnimatorState.initialized || (options && options.disabled) || !a.isElement(element)) { return $$q.when(false); }
+          if (!rootAnimatorState.initialized || (options && options.disabled) || !a.isElement(element)) { return $q.when(false); }
 
           element = a.element(element);
 
@@ -486,7 +486,7 @@
       };
     }]);
 
-    $provide.decorator('$animate', ['$delegate', '$ngvAnimator', '$$q', function ($delegate, $ngvAnimator, $$q) {
+    $provide.decorator('$animate', ['$delegate', '$ngvAnimator', '$q', function ($delegate, $ngvAnimator, $q) {
 
       return {
 
@@ -541,7 +541,7 @@
         },
 
         move: function(element, parentElement, afterElement, done) {
-          return $$q.when($delegate.move(element, parentElement, afterElement));
+          return $q.when($delegate.move(element, parentElement, afterElement));
         },
 
         addClass: function(element, className, done) {
