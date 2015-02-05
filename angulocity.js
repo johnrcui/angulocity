@@ -292,14 +292,11 @@
           link: function ($scope, $element, $attrs) {
             var $container;
             var unwatch;
-            if (container) {
-              if (a.isDefined($attrs[NGV_FLAG_GLOBAL]) && $attrs[NGV_FLAG_GLOBAL] !== 'false') {
-                $container = $rootElement;
-              } else if (NGV_CONTAINER_PARENT === container) {
-                $container = $element.parent() && $element.parent() || $rootElement;
-              } else if (NGV_CONTAINER_SELF === container) {
-                $container = $element;
-              }
+            if (NGV_CONTAINER_PARENT === container) {
+              $container =  (a.isDefined($attrs[NGV_FLAG_GLOBAL]) && $attrs[NGV_FLAG_GLOBAL] !== 'false' && $rootElement) ||
+                            ($element.parent() && $element.parent() || $rootElement);
+            } else if (NGV_CONTAINER_SELF === container) {
+              $container = $element;
             }
             $timeout(function() {
               unwatch = handleToggleEvents($scope, $element, $attrs, $container) ||
