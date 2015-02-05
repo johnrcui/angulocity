@@ -6,8 +6,7 @@
   /* Create some shortcut references to the libraries */
   var a = window.angular,
       v = window.Velocity || window.jQuery.Velocity,
-      $ = $ ? $ : window.jQuery,
-      VERSION = '0.1.2';
+      $ = $ ? $ : window.jQuery;
 
   /* Generate some error messages in the console if Velocity or Velocity UI is not found */
   if (!v) {
@@ -30,13 +29,61 @@
    * @ngmodule Angulocity
    */
   a.module('Angulocity', ['ng'])
-  .config(['$provide', function ($provide) {
+  .config(['$provide', '$compileProvider', function ($provide, $compileProvider) {
     var ELEMENT_NODE = 1;
     var NGV_ANIMATE_STATE = '$$NGV$$';
     var NGV_ANIMATING_CLASS = 'velocity-animating';
     var rootAnimatorState = { initialized: false, running: true, disabled: false };
     var animatorPromise;
-    var NGV_ATTR_EFFECT = 'ngvEffect';
+    var NGV_FLAG_EFFECT = 'ngvEffect';
+    var NGV_FLAG_ONCE = 'ngvOnce';
+    var NGV_FLAG_EAGER = 'ngvEager';
+    var NGV_FLAG_GLOBAL = 'ngvGlobal';
+    var NGV_FLAG_PREVENT = 'ngvPreventDefault';
+    var NGV_FLAG_TARGET = 'ngvEventTargeted';
+    var NGV_FLAG_SELECTOR = 'ngvSelect';
+    var NGV_FLAG_DISABLED = 'disabled';
+    // directives
+    var NGV_DIR_CLASS = 'ngvClass';
+    var NGV_DIR_FADE = 'ngvFade';
+    var NGV_DIR_SLIDE = 'ngvSlide';
+    var NGV_DIR_ELEMENT = 'ngvElement';
+    var NGV_DIR_COLLECTION = 'ngvCollection';
+    var NGV_DIR_ANIMATOR = 'ngvAnimator';
+    var NGV_DIR_SEQUENCE = 'ngvSequence';
+    // velocity options
+    var NGV_VELOCITY_DELAY = 'ngvDelay';
+    var NGV_VELOCITY_IN_DELAY = 'ngvInDelay';
+    var NGV_VELOCITY_OUT_DELAY = 'ngvOutDelay';
+    var NGV_VELOCITY_DISABLED = 'ngvDisabled';
+    var NGV_VELOCITY_DISPLAY = 'ngvDisplay';
+    var NGV_VELOCITY_IN_DISPLAY = 'ngvInDisplay';
+    var NGV_VELOCITY_OUT_DISPLAY = 'ngvOutDisplay';
+    var NGV_VELOCITY_DRAG = 'ngvDrag';
+    var NGV_VELOCITY_DURATION = 'ngvDuration';
+    var NGV_VELOCITY_IN_DURATION = 'ngvInDuration';
+    var NGV_VELOCITY_OUT_DURATION = 'ngvOutDuration';
+    var NGV_VELOCITY_EASING = 'ngvEasing';
+    var NGV_VELOCITY_LOOP = 'ngvLoop';
+    var NGV_VELOCITY_MOBILE_HA = 'ngvMobileHa';
+    var NGV_VELOCITY_SCROLL_AXIS = 'ngvScrollAxis';
+    var NGV_VELOCITY_SCROLL_OFFSET = 'ngvScrollOffset';
+    var NGV_VELOCITY_QUEUE = 'ngvQueue';
+    var NGV_VELOCITY_STAGGER = 'ngvStagger';
+    var NGV_VELOCITY_VISIBILITY = 'ngvVisibility';
+    var NGV_VELOCITY_IN_VISIBILITY = 'ngvInVisibility';
+    var NGV_VELOCITY_OUT_VISIBILITY = 'ngvOutVisibility';
+    // triggers
+    var NGV_TRIGGER_TOGGLE = 'ngvToggle';
+    var NGV_TRIGGER_ANIMATE = 'ngvAnimate';
+    var NGV_TRIGGER_WATCH = 'ngvWatch';
+    var NGV_TRIGGER_RECEIVE = 'ngvReceive';
+    var NGV_TRIGGER_EVENT = 'ngvEvent';
+    var NGV_TRIGGER_ENTER = 'ngvEnter';
+    var NGV_TRIGGER_LEAVE = 'ngvLeave';
+    // container types
+    var NGV_CONTAINER_PARENT = 0;
+    var NGV_CONTAINER_SELF = 1;
     var $queue = {};
 
     // From https://github.com/angular/bower-angular-animate/blob/master/angular-animate.js
@@ -114,59 +161,76 @@
 
     function getEventFlags (scope, attrs) {
       return {
-        once: a.isDefined(attrs.ngvOnce) && (attrs.ngvOnce !== 'false'),
-        eager: a.isDefined(attrs.ngvEager) && (attrs.ngvEager !== 'false'),
-        prevented: a.isDefined(attrs.ngvPreventDefault) && (attrs.ngvPreventDefault !== 'false'),
-        targeted: a.isDefined(attrs.ngvEventTargeted) && (attrs.ngvEventTargeted !== 'false'),
-        global: a.isDefined(attrs.ngvAnimator) && attrs.ngvGlobal && (attrs.ngvGlobal !== 'false'),
-        selector: attrs.ngvSelect && attrs.ngvSelect || attrs.ngvCollection && attrs.ngvCollection,
-        effect: getAnimationEffect(scope, attrs),
+        once: a.isDefined(attrs[NGV_FLAG_ONCE]) && (attrs[NGV_FLAG_ONCE] !== 'false'),
+        eager: a.isDefined(attrs[NGV_FLAG_EAGER]) && (attrs[NGV_FLAG_EAGER] !== 'false'),
+        prevented: a.isDefined(attrs[NGV_FLAG_PREVENT]) && (attrs[NGV_FLAG_PREVENT] !== 'false'),
+        targeted: a.isDefined(attrs[NGV_FLAG_TARGET]) ? (attrs[NGV_FLAG_TARGET] !== 'false') : true,
+        global: a.isDefined(attrs[NGV_DIR_ANIMATOR]) && attrs[NGV_FLAG_GLOBAL] && (attrs[NGV_FLAG_GLOBAL] !== 'false'),
+        selector: attrs[NGV_FLAG_SELECTOR] && attrs[NGV_FLAG_SELECTOR] || attrs[NGV_DIR_COLLECTION] && attrs[NGV_DIR_COLLECTION]
       };
     }
 
     function getAnimationOptions (scope, attrs, dir) {
       return {
         /* Velocity's default options */
-        duration: attrs.ngvDuration || (dir && attrs.ngvInDuration || attrs.ngvOutDuration),
-        delay: (attrs.ngvDelay && scope.$eval(attrs.ngvDelay)) || (dir && attrs.ngvInDelay || attrs.ngvOutDelay),
-        easing: attrs.ngvEasing && attrs.ngvEasing ||  'easeInOutQuart',
-        queue: attrs.ngvQueue && attrs.ngvQueue !== 'false' && attrs.ngvQueue,
-        display: attrs.ngvDisplay,
-        visibility: attrs.ngvVisibility,
-        loop: attrs.ngvLoop && scope.$eval(attrs.ngvLoop),
-        mobileHA: attrs.ngvMobileHa ? scope.$eval(attrs.ngvMobileHa) : true,
+        duration: attrs[NGV_VELOCITY_DURATION] && attrs[NGV_VELOCITY_DURATION] || (dir && attrs[NGV_VELOCITY_IN_DURATION] || attrs[NGV_VELOCITY_OUT_DURATION]),
+        delay: (attrs[NGV_VELOCITY_DELAY] && scope.$eval(attrs[NGV_VELOCITY_DELAY])) || (dir && attrs[NGV_VELOCITY_IN_DELAY] || attrs[NGV_VELOCITY_OUT_DELAY]),
+        easing: attrs[NGV_VELOCITY_EASING] && attrs[NGV_VELOCITY_EASING] ||  'easeInOutQuart',
+        queue: attrs[NGV_VELOCITY_QUEUE] && attrs[NGV_VELOCITY_QUEUE] !== 'false' && attrs[NGV_VELOCITY_QUEUE],
+        display: attrs[NGV_VELOCITY_DISPLAY] && attrs[NGV_VELOCITY_DISPLAY] || (dir && attrs[NGV_VELOCITY_IN_DISPLAY] || attrs[NGV_VELOCITY_OUT_DISPLAY]),
+        visibility: attrs[NGV_VELOCITY_VISIBILITY] && attrs[NGV_VELOCITY_VISIBILITY] || (dir && attrs[NGV_VELOCITY_IN_VISIBILITY] || attrs[NGV_VELOCITY_OUT_VISIBILITY]),
+        loop: attrs[NGV_VELOCITY_LOOP] && scope.$eval(attrs[NGV_VELOCITY_LOOP]),
+        mobileHA: attrs[NGV_VELOCITY_MOBILE_HA] ? scope.$eval(attrs[NGV_VELOCITY_MOBILE_HA]) : true,
         // group options
-        stagger: attrs.ngvStagger && scope.$eval(attrs.ngvStagger),
-        drag: attrs.ngvDrag && scope.$eval(attrs.ngvDrag),
+        stagger: attrs[NGV_VELOCITY_STAGGER] && scope.$eval(attrs[NGV_VELOCITY_STAGGER]),
+        drag: attrs[NGV_VELOCITY_DRAG] && scope.$eval(attrs[NGV_VELOCITY_DRAG]),
         // scroll options
-        axis: attrs.ngvScrollAxis && scope.$eval(attrs.ngvScrollAxis),
-        offset: scope.$eval(attrs.ngvOffset) && attrs.ngvOffset,
-        disabled: attrs.disabled && (attrs.disabled !== 'false')
+        axis: attrs[NGV_VELOCITY_SCROLL_AXIS] && scope.$eval(attrs[NGV_VELOCITY_SCROLL_AXIS]),
+        offset: scope.$eval(attrs[NGV_VELOCITY_SCROLL_OFFSET]) && attrs[NGV_VELOCITY_SCROLL_OFFSET],
+        disabled: attrs[NGV_FLAG_DISABLED] && (attrs[NGV_FLAG_DISABLED] !== 'false')
       };
     }
 
     function getAnimationEffect (scope, attrs) {
+      var style$ = /(\w+?):\s?(\w+);?/g;
+      var effect$ = /^[\w\.\-]+?(,[\w\.\-]+)?$/i;
 
       function tokenizeStringEffect (s) {
         var $effects = {};
         s = s.split(',');
         if (s.length > 1) {
-          $effects.leave = a.isDefined(v.Redirects[s[1]]) && s[1] || undefined;
+          $effects.leave = s[1] || undefined;
         }
         if (s.length > 0) {
-          $effects.enter = a.isDefined(v.Redirects[s[0]]) && s[0] || undefined;
+          $effects.default = $effects.enter = s[0] || undefined;
         } else {
           return undefined;
         }
         return $effects;
       }
 
-      return  attrs[NGV_ATTR_EFFECT] &&
-              /^[\w\.\-]+?(,[\w\.\-]+)?$/i.test(attrs[NGV_ATTR_EFFECT]) &&
-              tokenizeStringEffect(attrs[NGV_ATTR_EFFECT]) ||
-              scope.$eval(attrs[NGV_ATTR_EFFECT]) || {};
+      function composeStyleEffect(s) {
+        var $effects = {};
+        var m;
+        $effects.default = {};
+        style$.lastIndex = 0;
+        while ((m = style$.exec(s)) !== null) {
+          if (m.index === style$.lastIndex) {
+            style$.lastIndex++;
+          }
 
-//      return attrs[fromAttr] && scope.$eval(attrs[fromAttr]) || attrs[fromAttr] || 'fade'
+          $effects.default[camelCase(m[1])] = m[2];
+        }
+        return $effects;
+      }
+
+      if (effect$.test(attrs[NGV_FLAG_EFFECT])) {
+        return tokenizeStringEffect(attrs[NGV_FLAG_EFFECT]);
+      } else if (style$.test(attrs[NGV_FLAG_EFFECT])) {
+        return composeStyleEffect(attrs[NGV_FLAG_EFFECT]);
+      } else {
+        return {}
+      }
     }
 
     function getCollection (selector, element) {
@@ -211,14 +275,148 @@
     }
 
     function getClassHash(klass) {
-      var i;
-      klass = klass.trim().split(/\s/);
-      for (i = 0; i < klass.length; i++) {
-        klass[i] = 'ngv' + getHash('ngv' + klass[i].toLowerCase());
-      }
-      return klass.join(' ');
+        var i;
+        klass = klass && klass.trim().split(/\s/) || [];
+        for (i = 0; i < klass.length; i++) {
+          klass[i] = 'ngv' + getHash('ngv' + klass[i].toLowerCase());
+        }
+        return klass.join(' ');
     }
 
+    function NgvDirective(classAttr, container) {
+
+      return ['$ngvAnimator', '$timeout', '$rootElement', function ($ngvAnimator, $timeout, $rootElement) {
+        var directiveDefinition = {
+          restrict: 'EA',
+          scope: false,
+          link: function ($scope, $element, $attrs) {
+            var $container;
+            var unwatch;
+            if (NGV_CONTAINER_PARENT === container) {
+              $container = $element.parent() && $element.parent() || $rootElement;
+            } else if (NGV_CONTAINER_SELF === container) {
+              $container = $element;
+            }
+            $timeout(function() {
+              unwatch = handleToggleEvents($scope, $element, $attrs, $container) ||
+                        handleAnimateEvent($scope, $element, $attrs, $container) ||
+                        handleReceiveEvent($scope, $element, $attrs, $container) ||
+                        handleWatchEvent($scope, $element, $attrs, $container) ||
+                        handleBrowserEvent($scope, $element, $attrs, $container);
+            });
+
+            if (classAttr && $attrs[classAttr]) {
+              $ngvAnimator.addClass($element, $attrs[classAttr]);
+            }
+            $scope.$on('$destroy', unwatch);
+          }
+        };
+
+        function handleToggleEvents (scope, element, attrs, container) {
+          return attrs[NGV_TRIGGER_TOGGLE] && scope.$watch(attrs[NGV_TRIGGER_TOGGLE], function (n, o) {
+            var options = getAnimationOptions(scope, attrs, n);
+            var flags = getEventFlags(scope, attrs);
+            var effect = getAnimationEffect(scope, attrs);
+            var selected = container && getCollection(flags.selector || '*', container || element) || element;
+
+            if (!flags.eager && n === o) {
+              options.duration = 0;
+            }
+
+            if (n && effect.enter) {
+              $ngvAnimator.animate(selected, effect.enter, options);
+            } else if (a.isDefined(effect.leave)) {
+              $ngvAnimator.animate(selected, effect.leave, options);
+            }
+          });
+        }
+
+        function handleAnimateEvent (scope, element, attrs, container) {
+          var unwatch = attrs[NGV_TRIGGER_ANIMATE] && scope.$watch(attrs[NGV_TRIGGER_ANIMATE], function (n) {
+            var options = getAnimationOptions(scope, attrs);
+            var flags = getEventFlags(scope, attrs);
+            var effect = getAnimationEffect(scope, attrs);
+            var selected = container && getCollection(flags.selector || '*', container || element) || element;
+
+            if (n) {
+              $ngvAnimator.animate(selected, effect.enter, options);
+              if (flags.once) {
+                unwatch();
+              }
+            }
+          });
+
+          return unwatch;
+        }
+
+        function handleReceiveEvent (scope, element, attrs, container) {
+          var unwatch = attrs[NGV_TRIGGER_RECEIVE] && scope.$on(attrs[NGV_TRIGGER_RECEIVE], function () {
+            var options = getAnimationOptions(scope, attrs);
+            var flags = getEventFlags(scope, attrs);
+            var effect = getAnimationEffect(scope, attrs);
+            var selected = container && getCollection(flags.selector || '*', container || element) || element;
+
+            $ngvAnimator.animate(selected, effect.enter, options);
+            if (flags.once) {
+              unwatch();
+            }
+          });
+
+          return unwatch;
+        }
+
+        function handleWatchEvent (scope, element, attrs, container) {
+          var unwatch = attrs[NGV_TRIGGER_WATCH] && scope.$watch(attrs[NGV_TRIGGER_WATCH], function (n, o) {
+            var options = getAnimationOptions(scope, attrs);
+            var flags = getEventFlags(scope, attrs);
+            var effect = getAnimationEffect(scope, attrs);
+            var selected = container && getCollection(flags.selector || '*', container || element) || element;
+
+            if (n !== o || flags.eager) {
+              $ngvAnimator.animate(selected, effect.enter, options);
+              if (flags.once) {
+                unwatch();
+              }
+            }
+          });
+
+          return unwatch;
+        }
+
+        function handleBrowserEvent (scope, element, attrs, container) {
+          $timeout(function () {
+            var options = getAnimationOptions(scope, attrs);
+            var flags = getEventFlags(scope, attrs);
+            var effect = getAnimationEffect(scope, attrs);
+            var selected = container && getCollection(flags.selector || '*', container || element) || element;
+            var unwatch = attrs[NGV_TRIGGER_EVENT] && function () { selected.off(attrs[NGV_TRIGGER_EVENT]); };
+
+           return unwatch && selected.on(attrs[NGV_TRIGGER_EVENT], function (e) {
+              if (flags.targeted) {
+                $ngvAnimator.animate(e.toElement, effect.enter, options);
+              } else {
+                $ngvAnimator.animate(selected, effect.enter, options);
+              }
+
+              if (flags.once) {
+                unwatch();
+              }
+
+              if (flags.prevented) {
+                e.preventDefault();
+              }
+            });
+          });
+        }
+
+        return directiveDefinition;
+      }];
+
+    }
+
+    /******************
+     *  $ngvAnimator
+     ******************/
     $provide.provider('$ngvAnimator', function $ngvAnimatorProvider() {
       var $sequence = {};
       var $defaults = {
@@ -292,7 +490,7 @@
         }
 
         function runAnimation(element, effect, options, postOperation) {
-          if (!rootAnimatorState.initialized || (options && options.disabled) || !a.isElement(element)) { return $q.when(false); }
+          if ((options && options.disabled) || !a.isElement(element)) { return $q.when(false); }
 
           element = a.element(element);
 
@@ -378,138 +576,19 @@
       };
     });
 
-    $provide.factory('$$ngvLinker', ['$ngvAnimator', '$timeout', function ($ngvAnimator, $timeout) {
-      function handleToggleEvents (scope, element, attrs, container) {
-        return attrs.ngvToggle && scope.$watch(attrs.ngvToggle, function (n, o) {
-          var options = getAnimationOptions(scope, attrs, n);
-          var flags = getEventFlags(scope, attrs);
-          var selected = container && getCollection(flags.selector || '*', container || element) || element;
-          var animated = false;
-
-          if (!flags.eager && n === o) {
-            options.duration = 0;
-          }
-
-          if (n) {
-            $ngvAnimator.animate(selected, flags.effect.enter, options);
-          } else if (a.isDefined(flags.effect.leave)) {
-            $ngvAnimator.animate(selected, flags.effect.leave, options);
-          } else {
-            if (animated) {
-              $ngvAnimator.animate(selected, 'reverse');
-            } else {
-              $ngvAnimator.animate(selected, flags.effect.enter, options);
-            }
-          }
-          animated = true;
-        });
-      }
-
-      function handleAnimateEvent (scope, element, attrs, container) {
-        var unwatch = attrs.ngvAnimate && scope.$watch(attrs.ngvAnimate, function (n, o) {
-          var options = getAnimationOptions(scope, attrs);
-          var flags = getEventFlags(scope, attrs);
-          var selected = container && getCollection(flags.selector || '*', container || element) || element;
-
-          if (n && ((n !== o) || flags.eager)) {
-            $ngvAnimator.animate(selected, flags.effect.enter, options);
-            if (flags.once) {
-              unwatch();
-            }
-          }
-        });
-
-        return unwatch;
-      }
-
-      function handleReceiveEvent (scope, element, attrs, container) {
-        var unwatch = attrs.ngvReceive && scope.$on(attrs.ngvReceive, function () {
-          var options = getAnimationOptions(scope, attrs);
-          var flags = getEventFlags(scope, attrs);
-          var selected = container && getCollection(flags.selector || '*', container || element) || element;
-
-          $ngvAnimator.animate(selected, flags.effect.enter, options);
-          if (flags.once) {
-            unwatch();
-          }
-        });
-
-        return unwatch;
-      }
-
-      function handleWatchEvent (scope, element, attrs, container) {
-        var unwatch = attrs.ngvWatch && scope.$watch(attrs.ngvWatch, function (n, o) {
-          var options = getAnimationOptions(scope, attrs);
-          var flags = getEventFlags(scope, attrs);
-          var selected = container && getCollection(flags.selector || '*', container || element) || element;
-
-          if (n !== o || flags.eager) {
-            $ngvAnimator.animate(selected, flags.effect.enter, options);
-            if (flags.once) {
-              unwatch();
-            }
-          }
-        });
-
-        return unwatch;
-      }
-
-      function handleBrowserEvent (scope, element, attrs, container) {
-        $timeout(function () {
-          var options = getAnimationOptions(scope, attrs);
-          var flags = getEventFlags(scope, attrs);
-          var selected = container && getCollection(flags.selector || '*', container || element) || element;
-          var unwatch = attrs.ngvEvent && function () { selected.off(attrs.ngvEvent); };
-
-         return unwatch && selected.on(attrs.ngvEvent, function (e) {
-            if (flags.targeted) {
-              $ngvAnimator.animate(e.toElement, flags.effect.enter, options);
-            } else {
-              $ngvAnimator.animate(selected, flags.effect.enter, options);
-            }
-
-            if (flags.once) {
-              unwatch();
-            }
-
-            if (flags.prevented) {
-              e.preventDefault();
-            }
-          });
-        });
-      }
-
-      return {
-        $$utilities: {
-          getAnimationOptions: getAnimationOptions,
-          getAnimationEffect: getAnimationEffect,
-          getEventFlags: getEventFlags,
-        },
-        toggleHandler: handleToggleEvents,
-        animateHandler: handleAnimateEvent,
-        receiveHandler: handleReceiveEvent,
-        watchHandler: handleWatchEvent,
-        eventHandler: handleBrowserEvent,
-
-      };
-    }]);
-
-    $provide.decorator('$animate', ['$delegate', '$ngvAnimator', '$q', function ($delegate, $ngvAnimator, $q) {
+    /**************
+     *  $animate
+     **************/
+    $provide.decorator('$animate', ['$delegate', '$ngvAnimator', function ($delegate, $ngvAnimator) {
 
       return {
 
-        animate: function(element, className, from, to, animationCompleted, options) {
-          if (arguments.length === 3) {
-            return $ngvAnimator.animate(element, className, from);
-          } else {
-            return $delegate.animate(element, className, from, to, animationCompleted, options);
-          }
-        },
+        animate: $ngvAnimator.animate,
 
         enter: function(element, parentElement, afterElement, done) {
           var $element = stripCommentsFromElement(element);
           var $attrs = mapAttrs($element[0].attributes);
-          if (a.isDefined($attrs.ngvEnter)) {
+          if (a.isDefined($attrs[NGV_TRIGGER_ENTER])) {
             $delegate.enter(element, parentElement, afterElement);
             var $options = getAnimationOptions($element.scope(), $attrs);
             var $effect = getAnimationEffect($element.scope(), $attrs);
@@ -521,7 +600,7 @@
               $options.delay = ($options.delay || 0) + $options.stagger * $index;
             }
             $ngvAnimator.animate($element, {opacity: 0}, {duration: 0});
-            return $ngvAnimator.animate($element, $effect.enter, $options);
+            return $ngvAnimator.animate($element, $effect.enter, $options).finally(done && done);
           } else {
             return $delegate.enter(element, parentElement, afterElement);
           }
@@ -530,7 +609,7 @@
         leave: function(element, done) {
           var $element = stripCommentsFromElement(element);
           var $attrs = mapAttrs(element[0].attributes);
-          if (a.isDefined($attrs.ngvLeave)) {
+          if (a.isDefined($attrs[NGV_TRIGGER_LEAVE])) {
             var $options = getAnimationOptions(element.scope(), $attrs);
             var $effect = getAnimationEffect(element.scope(), $attrs);
             $options.display = 'none';
@@ -541,27 +620,33 @@
               var $index = $queue[$hash];
               $options.delay = ($options.delay || 0) + $options.stagger * $index;
             }
-
-            return $ngvAnimator.animate($element, $effect.leave || $effect.enter, $options, function () { $delegate.leave(element); });
+            return $ngvAnimator.animate($element, $effect.leave || $effect.enter, $options, function () { $delegate.leave(element); }).finally(done && done);
           } else {
             return $delegate.leave(element);
           }
         },
 
         move: function(element, parentElement, afterElement, done) {
-          return $q.when($delegate.move(element, parentElement, afterElement));
+          $delegate.move(element, parentElement, afterElement);
+          if (a.isFunction(done)) { done(); }
         },
 
         addClass: function(element, className, done) {
-          //return this.setClass(element, className, [], done);
+          element = stripCommentsFromElement(element);
+          $delegate.addClass(element, className);
+          if (a.isFunction(done)) { done(); }
         },
 
         removeClass: function(element, className, done) {
-          //return this.setClass(element, [], className, done);
+          element = stripCommentsFromElement(element);
+          $delegate.removeClass(element, className);
+          if (a.isFunction(done)) { done(); }
         },
 
         setClass: function(element, add, remove, done) {
-          //return $delegate.setClass(element, add, remove);
+          element = stripCommentsFromElement(element);
+          $delegate.setClass(element, add, remove);
+          if (a.isFunction(done)) { done(); }
         },
 
         cancel: function(element) {
@@ -589,171 +674,99 @@
       };
     }]);
 
-  }])
-  /**
-   * @ngdoc directive
-   * @name  ngvSlide
-   *
-   */
-  .directive('ngvSlide', ['$ngvAnimator', '$$ngvLinker', function ($ngvAnimator, $$ngvLinker) {
-    return {
-      restrict      : 'A',
-      $scope         :  false,
-      link          : function ($scope, $element, $attrs) {
-        var unwatch = $attrs.ngvSlide && $scope.$watch($attrs.ngvSlide, function (n, o) {
-          var options = $$ngvLinker.$$utilities.getAnimationOptions($scope, $attrs, n);
-          var flags = $$ngvLinker.$$utilities.getEventFlags($scope, $attrs);
+    /****************
+     *  Directives
+     ****************/
+    $compileProvider
+    .directive('ngvClass', ['$ngvAnimator', function ($ngvAnimator) {
+      return {
+        restrict      : 'A',
+        $scope         :  false,
+        link          : function ($scope, $element, $attrs) {
+          var klass;
+          var unwatch;
 
-          if (!flags.eager && n === o) {
-            options.duration = 0;
-          }
-          $ngvAnimator.animate($element, (n && 'slideDown' || 'slideUp'), options);
-        });
-
-        $scope.$on('$destroy', unwatch);
-      }
-    };
-  }])
-  /**
-   * @ngdoc directive
-   * @name  ngvFade
-   *
-   */
-  .directive('ngvFade', ['$ngvAnimator', '$$ngvLinker', function ($ngvAnimator, $$ngvLinker) {
-    return {
-      restrict      : 'A',
-      $scope         :  false,
-      link          : function ($scope, $element, $attrs) {
-        var unwatch = $attrs.ngvSlide && $scope.$watch($attrs.ngvSlide, function (n, o) {
-          var options = $$ngvLinker.$$utilities.getAnimationOptions($scope, $attrs, n);
-          var flags = $$ngvLinker.$$utilities.getEventFlags($scope, $attrs);
-
-          if (!flags.eager && n === o) {
-            options.duration = 0;
-          }
-          $ngvAnimator.animate($element, (n && 'fadeIn' || 'fadeOut'), options);
-        });
-
-        $scope.$on('$destroy', unwatch);
-      }
-    };
-  }])
-  /**
-   * @ngdoc directive
-   * @name  ngvClass
-   *
-   */
-  .directive('ngvClass', ['$ngvAnimator', function ($ngvAnimator) {
-    return {
-      restrict      : 'A',
-      $scope         :  false,
-      link          : function ($scope, $element, $attrs) {
-        var klass;
-        var unwatch;
-
-        function addClassArray(r) {
-          for (var i = 0; i < r.length; i++) {
-            $ngvAnimator.addClass($element, r[i]);
-          }
-        }
-
-        function setClassObject(n) {
-          a.forEach(n, function(val, prop) {
-            if (val) {
-              $ngvAnimator.addClass($element, prop);
-            } else {
-              $ngvAnimator.removeClass($element, prop);
+          function addClassArray(r) {
+            for (var i = 0; i < r.length; i++) {
+              $ngvAnimator.addClass($element, r[i]);
             }
+          }
+
+          function setClassObject(n) {
+            a.forEach(n, function(val, prop) {
+              if (val) {
+                $ngvAnimator.addClass($element, prop);
+              } else {
+                $ngvAnimator.removeClass($element, prop);
+              }
+            });
+          }
+
+
+          /* Force evaluation of ngvClass to see if object or string supplied */
+          if (a.isDefined($attrs[NGV_DIR_CLASS])) {
+            if ($attrs[NGV_DIR_CLASS] && /^(\[|\{).*?(\}|\])$/.test($attrs[NGV_DIR_CLASS].trim())) {
+              klass = $scope.$eval($attrs[NGV_DIR_CLASS]);
+            } else {
+              klass = $attrs[NGV_DIR_CLASS].split(/\s/);
+            }
+
+            if (a.isArray(klass)) {
+              addClassArray(klass);
+            } else if (a.isObject(klass)) {
+              unwatch = $scope.$watch($attrs[NGV_DIR_CLASS], function (n) {
+                setClassObject(n);
+              }, true);
+            }
+          }
+
+          if (unwatch) {
+            $scope.$on('$destroy', unwatch);
+          }
+        }
+      };
+    }])
+    .directive('ngvSlide', ['$ngvAnimator', function ($ngvAnimator) {
+      return {
+        restrict      : 'A',
+        $scope         :  false,
+        link          : function ($scope, $element, $attrs) {
+          var unwatch = $attrs[NGV_DIR_SLIDE] && $scope.$watch($attrs[NGV_DIR_SLIDE], function (n, o) {
+            var options = getAnimationOptions($scope, $attrs, n);
+            var flags = getEventFlags($scope, $attrs);
+
+            if (!flags.eager && n === o) {
+              options.duration = 0;
+            }
+            $ngvAnimator.animate($element, (n && 'slideDown' || 'slideUp'), options);
           });
-        }
 
-
-        /* Force evaluation of ngvClass to see if object or string supplied */
-        if (a.isDefined($attrs.ngvClass)) {
-          if (/^(\[|\{).*?(\}|\])$/.test($attrs.ngvClass.trim())) {
-            klass = $scope.$eval($attrs.ngvClass);
-          } else {
-            klass = $attrs.ngvClass.split(/\s/);
-          }
-
-          if (a.isArray(klass)) {
-            addClassArray(klass);
-          } else if (a.isObject(klass)) {
-            unwatch = $scope.$watch($attrs.ngvClass, function (n) {
-              setClassObject(n);
-            }, true);
-          }
-        }
-
-        if (unwatch) {
           $scope.$on('$destroy', unwatch);
         }
-      }
-    };
-  }])
-  /**
-   * @ngdoc directive
-   * @name  ngvAnimator
-   *
-   */
-  .directive('ngvAnimator', ['$$ngvLinker', '$rootElement', function ($$ngvLinker, $rootElement) {
-    return {
-      restrict      : 'EA',
-      $scope         :  true,
-      link          : function ($scope, $element, $attrs) {
-        var container = $element.parent() && $element.parent() || $rootElement;
-        var unwatch = $$ngvLinker.toggleHandler($scope, $element, $attrs, container) ||
-                      $$ngvLinker.animateHandler($scope, $element, $attrs, container) ||
-                      $$ngvLinker.receiveHandler($scope, $element, $attrs, container) ||
-                      $$ngvLinker.watchHandler($scope, $element, $attrs, container) ||
-                      $$ngvLinker.eventHandler($scope, $element, $attrs, container);
+      };
+    }])
+    .directive('ngvFade', ['$ngvAnimator', function ($ngvAnimator) {
+      return {
+        restrict      : 'A',
+        $scope         :  false,
+        link          : function ($scope, $element, $attrs) {
+          var unwatch = $attrs[NGV_DIR_FADE] && $scope.$watch($attrs[NGV_DIR_FADE], function (n, o) {
+            var options = getAnimationOptions($scope, $attrs, n);
+            var flags = getEventFlags($scope, $attrs);
 
-        $scope.$on('$destroy', unwatch);
-      }
-    };
-  }])
-  /**
-   * @ngdoc directive
-   * @name  ngvCollection
-   *
-   */
-  .directive('ngvCollection', ['$ngvAnimator', '$$ngvLinker', function ($ngvAnimator, $$ngvLinker) {
-    return {
-      restrict      : 'EA',
-      $scope         :  false,
-      link          : function ($scope, $element, $attrs) {
-        var unwatch = $$ngvLinker.toggleHandler($scope, $element, $attrs, $element) ||
-                      $$ngvLinker.animateHandler($scope, $element, $attrs, $element) ||
-                      $$ngvLinker.receiveHandler($scope, $element, $attrs, $element) ||
-                      $$ngvLinker.watchHandler($scope, $element, $attrs, $element) ||
-                      $$ngvLinker.eventHandler($scope, $element, $attrs, $element);
+            if (!flags.eager && n === o) {
+              options.duration = 0;
+            }
+            $ngvAnimator.animate($element, (n && 'fadeIn' || 'fadeOut'), options);
+          });
 
-        $scope.$on('$destroy', unwatch);
-      }
-    };
-  }])
-  /**
-   * @ngdoc directive
-   * @name  ngvElement
-   *
-   */
-  .directive('ngvElement', ['$ngvAnimator', '$$ngvLinker', function ($ngvAnimator, $$ngvLinker) {
-    return {
-      restrict      : 'EA',
-      $scope         :  false,
-      link          : function ($scope, $element, $attrs) {
-        var unwatch = $$ngvLinker.toggleHandler($scope, $element, $attrs) ||
-                      $$ngvLinker.animateHandler($scope, $element, $attrs) ||
-                      $$ngvLinker.receiveHandler($scope, $element, $attrs) ||
-                      $$ngvLinker.watchHandler($scope, $element, $attrs) ||
-                      $$ngvLinker.eventHandler($scope, $element, $attrs);
-
-        if ($attrs.ngvElement) {
-          $element.addClass($ngvAnimator.class($attrs.ngvElement));
+          $scope.$on('$destroy', unwatch);
         }
-        $scope.$on('$destroy', unwatch);
-      }
-    };
-  }])
-  ;
+      };
+    }])
+    .directive('ngvAnimator', new NgvDirective(null, NGV_CONTAINER_PARENT))
+    .directive('ngvCollection', new NgvDirective(null, NGV_CONTAINER_SELF))
+    .directive('ngvElement', new NgvDirective('ngvElement'));
+
+  }]);
 })(window, void 0);
