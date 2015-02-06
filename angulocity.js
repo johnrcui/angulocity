@@ -175,7 +175,7 @@
         /* Velocity's default options */
         duration: attrs[NGV_VELOCITY_DURATION] && attrs[NGV_VELOCITY_DURATION] || (dir && attrs[NGV_VELOCITY_IN_DURATION] || attrs[NGV_VELOCITY_OUT_DURATION]),
         delay: (attrs[NGV_VELOCITY_DELAY] && scope.$eval(attrs[NGV_VELOCITY_DELAY])) || (dir && attrs[NGV_VELOCITY_IN_DELAY] || attrs[NGV_VELOCITY_OUT_DELAY]),
-        easing: attrs[NGV_VELOCITY_EASING] && attrs[NGV_VELOCITY_EASING] ||  'easeInOutQuart',
+        easing: attrs[NGV_VELOCITY_EASING] && attrs[NGV_VELOCITY_EASING] ||  'swing',
         queue: attrs[NGV_VELOCITY_QUEUE] && attrs[NGV_VELOCITY_QUEUE] !== 'false' && attrs[NGV_VELOCITY_QUEUE],
         display: attrs[NGV_VELOCITY_DISPLAY] && attrs[NGV_VELOCITY_DISPLAY] || (dir && attrs[NGV_VELOCITY_IN_DISPLAY] || attrs[NGV_VELOCITY_OUT_DISPLAY]),
         visibility: attrs[NGV_VELOCITY_VISIBILITY] && attrs[NGV_VELOCITY_VISIBILITY] || (dir && attrs[NGV_VELOCITY_IN_VISIBILITY] || attrs[NGV_VELOCITY_OUT_VISIBILITY]),
@@ -340,7 +340,7 @@
             var selected = container && getCollection(flags.selector || '*', container || element) || element;
 
             if (n) {
-              $ngvAnimator.animate(selected, effect.enter, options);
+              $ngvAnimator.animate(selected, effect.default, options);
               if (flags.once) {
                 unwatch();
               }
@@ -357,7 +357,7 @@
             var effect = getAnimationEffect(scope, attrs);
             var selected = container && getCollection(flags.selector || '*', container || element) || element;
 
-            $ngvAnimator.animate(selected, effect.enter, options);
+            $ngvAnimator.animate(selected, effect.default, options);
             if (flags.once) {
               unwatch();
             }
@@ -374,7 +374,7 @@
             var selected = container && getCollection(flags.selector || '*', container || element) || element;
 
             if (n !== o || flags.eager) {
-              $ngvAnimator.animate(selected, effect.enter, options);
+              $ngvAnimator.animate(selected, effect.default, options);
               if (flags.once) {
                 unwatch();
               }
@@ -394,9 +394,9 @@
 
            return unwatch && selected.on(attrs[NGV_TRIGGER_EVENT], function (e) {
               if (flags.targeted) {
-                $ngvAnimator.animate(e.toElement, effect.enter, options);
+                $ngvAnimator.animate(e.toElement, effect.default, options);
               } else {
-                $ngvAnimator.animate(selected, effect.enter, options);
+                $ngvAnimator.animate(selected, effect.default, options);
               }
 
               if (flags.once) {
