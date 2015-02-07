@@ -163,4 +163,4 @@ Simply, these animations do not rely on what happens on the controller to define
 
 ## Final Thoughts
 
-I hope I have convinced some of you to accept my notion of animating AngularJS. There might be some die-hard ngAnimate guys that will hate me for this, but I'm not planning to go back. Thanks for the interest in this subject matter and please let me know what you think ...but be nice :).
+I hope I have convinced some of you to accept my notion of animating AngularJS. There might be some die-hard ngAnimate guys that will hate me for this, but at least give it a try. Thanks for the interest in this subject matter and please let me know what you think ...but be nice :).
