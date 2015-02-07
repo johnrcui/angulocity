@@ -18,7 +18,7 @@ Angulocity is an effort to make better sense of doing animations with Angular. A
 
 These are what's in development in their priority order
 
-1.  Create a decorator for `$animate` to handle ngAnimate events
+1.  ~~Create a decorator for `$animate` to handle ngAnimate events~~ (done)
 2.  Set up an automated testing environment
 
 Checkout the `works` branch to see the progress.
