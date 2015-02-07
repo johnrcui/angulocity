@@ -35,6 +35,7 @@
     var NGV_ANIMATING_CLASS = 'velocity-animating';
     var rootAnimatorState = { initialized: false, running: true, disabled: false };
     var animatorPromise;
+    var NGV_ANIMATOR = '$ngvAnimator';
     var NGV_FLAG_EFFECT = 'ngvEffect';
     var NGV_FLAG_ONCE = 'ngvOnce';
     var NGV_FLAG_EAGER = 'ngvEager';
@@ -73,6 +74,9 @@
     var NGV_VELOCITY_VISIBILITY = 'ngvVisibility';
     var NGV_VELOCITY_IN_VISIBILITY = 'ngvInVisibility';
     var NGV_VELOCITY_OUT_VISIBILITY = 'ngvOutVisibility';
+    var NGV_VELOCITY_BEGIN = 'ngvBegin';
+    var NGV_VELOCITY_PROGRESS = 'ngvProgress';
+    var NGV_VELOCITY_COMPLETE = 'ngvComplete';
     // triggers
     var NGV_TRIGGER_TOGGLE = 'ngvToggle';
     var NGV_TRIGGER_ANIMATE = 'ngvAnimate';
@@ -187,6 +191,11 @@
         // scroll options
         axis: attrs[NGV_VELOCITY_SCROLL_AXIS] && scope.$eval(attrs[NGV_VELOCITY_SCROLL_AXIS]),
         offset: scope.$eval(attrs[NGV_VELOCITY_SCROLL_OFFSET]) && attrs[NGV_VELOCITY_SCROLL_OFFSET],
+        // callbacks
+        begin: attrs[NGV_VELOCITY_BEGIN] && scope.$eval(attrs[NGV_VELOCITY_BEGIN]),
+        progress: attrs[NGV_VELOCITY_PROGRESS] && scope.$eval(attrs[NGV_VELOCITY_PROGRESS]),
+        complete: attrs[NGV_VELOCITY_COMPLETE] && scope.$eval(attrs[NGV_VELOCITY_COMPLETE]),
+        //
         disabled: attrs[NGV_FLAG_DISABLED] && (attrs[NGV_FLAG_DISABLED] !== 'false')
       };
     }
@@ -229,7 +238,7 @@
       } else if (style$.test(attrs[NGV_FLAG_EFFECT])) {
         return composeStyleEffect(attrs[NGV_FLAG_EFFECT]);
       } else {
-        return {}
+        return { default: scope.$eval(attrs[NGV_FLAG_EFFECT]) || {} };
       }
     }
 
@@ -285,7 +294,7 @@
 
     function NgvDirective(classAttr, container) {
 
-      return ['$ngvAnimator', '$timeout', '$rootElement', function ($ngvAnimator, $timeout, $rootElement) {
+      return [NGV_ANIMATOR, '$timeout', '$rootElement', function ($ngvAnimator, $timeout, $rootElement) {
         var directiveDefinition = {
           restrict: 'EA',
           scope: false,
@@ -418,13 +427,11 @@
     /******************
      *  $ngvAnimator
      ******************/
-    $provide.provider('$ngvAnimator', function $ngvAnimatorProvider() {
+    $provide.provider(NGV_ANIMATOR, function $ngvAnimatorProvider() {
       var $sequence = {};
       var $defaults = {
         effects: v.RegisterEffect.packagedEffects,
-        animationOptions: {
-
-        }
+        options: v.defaults,
       };
 
       function RegisterSequence(name, sequence) {
@@ -442,6 +449,18 @@
       function DeregisterEffect(name) {
         if (name in v.Redirects) {
           delete v.Redirects[name];
+        }
+      }
+
+      function RegisterEasing(name, easing) {
+        if (a.isArray(easing) || a.isFunction(easing)) {
+          v.Easings[name] = easing;
+        }
+      }
+
+      function DeregisterEasing(name) {
+        if (name in v.Easings) {
+          delete v.Easings[name];
         }
       }
 
@@ -574,13 +593,20 @@
           register: RegisterSequence,
           deregister: DeregisterSequence
         },
+        easings: {
+          list: function () {
+            return Object.keys(v.Easings);
+          },
+          register: RegisterEasing,
+          deregister: DeregisterEasing
+        }
       };
     });
 
     /**************
      *  $animate
      **************/
-    $provide.decorator('$animate', ['$delegate', '$ngvAnimator', function ($delegate, $ngvAnimator) {
+    $provide.decorator('$animate', ['$delegate', NGV_ANIMATOR, function ($delegate, $ngvAnimator) {
 
       return {
 
@@ -679,7 +705,7 @@
      *  Directives
      ****************/
     $compileProvider
-    .directive('ngvClass', ['$ngvAnimator', function ($ngvAnimator) {
+    .directive(NGV_DIR_CLASS, [NGV_ANIMATOR, function ($ngvAnimator) {
       return {
         restrict      : 'A',
         $scope         :  false,
@@ -727,7 +753,7 @@
         }
       };
     }])
-    .directive('ngvSlide', ['$ngvAnimator', function ($ngvAnimator) {
+    .directive(NGV_DIR_SLIDE, [NGV_ANIMATOR, function ($ngvAnimator) {
       return {
         restrict      : 'A',
         $scope         :  false,
@@ -746,7 +772,7 @@
         }
       };
     }])
-    .directive('ngvFade', ['$ngvAnimator', function ($ngvAnimator) {
+    .directive(NGV_DIR_FADE, [NGV_ANIMATOR, function ($ngvAnimator) {
       return {
         restrict      : 'A',
         $scope         :  false,
@@ -765,9 +791,10 @@
         }
       };
     }])
-    .directive('ngvAnimator', new NgvDirective(null, NGV_CONTAINER_PARENT))
-    .directive('ngvCollection', new NgvDirective(null, NGV_CONTAINER_SELF))
-    .directive('ngvElement', new NgvDirective('ngvElement'));
+    //.directive('ngvSequence', [function () {}])
+    .directive(NGV_DIR_ANIMATOR, new NgvDirective(null, NGV_CONTAINER_PARENT))
+    .directive(NGV_DIR_COLLECTION, new NgvDirective(null, NGV_CONTAINER_SELF))
+    .directive(NGV_DIR_ELEMENT, new NgvDirective(NGV_DIR_ELEMENT));
 
   }]);
 })(window, void 0);
