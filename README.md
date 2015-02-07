@@ -11,8 +11,8 @@ Angulocity is an effort to make better sense of doing animations with Angular. A
 * [Velocity](https://github.com/julianshapiro/velocity)
 * [Velocity UI Pack](https://github.com/julianshapiro/velocity) (Optional)
 
-## Usage
-######View a live demonstration with instructions on how to use Angulocity is available through [Plunker](http://plnkr.co/edit/oMjJF9gUXpy3damtPI4G?p=preview).
+## Usage & Demo
+####View a live demonstration with instructions on how to use Angulocity available through [Plunker](http://plnkr.co/edit/oMjJF9gUXpy3damtPI4G?p=preview).
 
 ## In the *Works*
 
